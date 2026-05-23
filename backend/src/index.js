@@ -59,8 +59,17 @@ app.use((err, _req, res, _next) => {
   });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 DocuAgent backend running on http://localhost:${PORT}`);
+});
+
+server.on("error", (error) => {
+  if (error.code === "EADDRINUSE") {
+    console.error(`Port ${PORT} is already in use. Please stop the process using this port or set a different PORT in your .env file.`);
+    process.exit(1);
+  }
+  console.error("Unexpected server error:", error);
+  process.exit(1);
 });
 
 export default app;

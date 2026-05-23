@@ -8,5 +8,11 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    port: 3000,
+  },
+  optimizeDeps: {
+    include: ['react-hot-toast'],
+  },
 })
 

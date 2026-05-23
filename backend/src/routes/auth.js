@@ -107,7 +107,7 @@ router.get("/github/callback", async (req, res, next) => {
     }
 
     // Default: Redirect to frontend dashboard passing the token
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
     res.redirect(`${frontendUrl}?token=${accessToken}`);
   } catch (error) {
     next(error);
