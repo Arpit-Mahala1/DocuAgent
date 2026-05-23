@@ -1,22 +1,22 @@
-import Anthropic from "@anthropic-ai/sdk";
+import Groq from "groq-sdk";
 import { GitHubService } from "../services/github.js";
 
 /**
- * Main documentation generation routine using Anthropic Claude & GitHub Service
- * This skeleton sets up the agent system prompts and execution loop.
+ * Main documentation generation routine using Groq & GitHub Service
+ * This skeleton sets up the agent prompts and execution loop.
  */
 export async function generateDocs({ owner, repo, branch, token }) {
-  console.log(`[DocuAgent] Starting documentation process for ${owner}/${repo} (${branch})...`);
+  console.log(`[DocuAgent] Starting documentation process for ${owner}/${repo} (${branch}) via Groq...`);
 
-  // Initialize service & anthropic client
+  // Initialize service & Groq client
   const github = new GitHubService(token);
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
 
   if (!apiKey) {
-    throw new Error("ANTHROPIC_API_KEY is not set in backend environment variables.");
+    throw new Error("GROQ_API_KEY is not set in backend environment variables.");
   }
 
-  const anthropic = new Anthropic({ apiKey });
+  const groq = new Groq({ apiKey });
 
   // 1. Fetch file list to give context to the Agent
   const files = await github.listRepoFiles(owner, repo, branch);
@@ -52,14 +52,17 @@ Analyze the codebase and write professional technical documentation including:
 
 Output the response in clean, high-quality Markdown format.`;
 
-  // 4. Invoke Anthropic Claude
-  console.log("[DocuAgent] Requesting documentation structure from Claude...");
-  const msg = await anthropic.messages.create({
-    model: "claude-3-5-sonnet-latest",
-    max_tokens: 4000,
+  // 4. Invoke Groq Completions API with Llama 3.3 70B
+  console.log("[DocuAgent] Requesting documentation structure from Groq Llama 3.3...");
+  const completion = await groq.chat.completions.create({
+    model: "llama-3.3-70b-versatile",
+    max_tokens: 4096,
     temperature: 0.2,
-    system: systemPrompt,
     messages: [
+      {
+        role: "system",
+        content: systemPrompt
+      },
       {
         role: "user",
         content: `Here is the codebase overview for ${owner}/${repo}:
@@ -75,7 +78,7 @@ Please generate the comprehensive technical documentation for this repository.`
     ]
   });
 
-  const generatedDocs = msg.content[0].text;
+  const generatedDocs = completion.choices[0]?.message?.content || "";
 
   // 5. Save the generated documentation back to GitHub
   const docsPath = "TECHNICAL_DOCS.md";
@@ -95,7 +98,7 @@ Please generate the comprehensive technical documentation for this repository.`
     repo,
     docsPath,
     generatedDocs,
-    "docs: auto-generate TECHNICAL_DOCS.md by DocuAgent",
+    "docs: auto-generate TECHNICAL_DOCS.md by DocuAgent (via Groq Llama3.3)",
     existingSha,
     branch
   );

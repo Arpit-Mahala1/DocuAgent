@@ -1,5 +1,8 @@
 import express from "express";
 import { generateDocs } from "../agents/docAgent.js";
+import { runCodeParserAgent } from "../agents/codeParserAgent.js";
+
+export const connectedRepos = [];
 
 const router = express.Router();
 
@@ -58,4 +61,50 @@ router.post("/generate", async (req, res, next) => {
   }
 });
 
+import path from "path";
+
+/**
+ * POST /api/docs/parse
+ * Runs CodeParserAgent on the specified local directory path or remote GitHub repository
+ */
+router.post("/parse", async (req, res, next) => {
+  const { folderPath, owner, repo, branch, accessToken } = req.body;
+
+  try {
+    let runOptions;
+
+    if (owner && repo) {
+      runOptions = {
+        owner,
+        repo,
+        branch: branch || "main",
+        token: accessToken || process.env.GITHUB_ACCESS_TOKEN
+      };
+    } else {
+      // Resolve path relative to current backend workspace to guarantee robust file operations
+      const targetFolder = folderPath || ".";
+      const resolvedPath = path.resolve(targetFolder);
+      runOptions = { folderPath: resolvedPath };
+    }
+
+    // Print streaming console outputs to server console
+    const result = await runCodeParserAgent(runOptions, (event) => {
+      if (event.type === "status") {
+        console.log(`[CodeParserAgent Status] ${event.message}`);
+      } else if (event.type === "stream") {
+        process.stdout.write(event.text);
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `CodeParserAgent successfully parsed files.`,
+      result
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;
+
