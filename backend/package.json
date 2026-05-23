@@ -1,0 +1,23 @@
+{
+  "name": "docuagent-backend",
+  "version": "1.0.0",
+  "description": "Backend services and AI agent logic for DocuAgent documentation tool",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "@agentic/core": "*",
+    "@anthropic-ai/sdk": "^0.20.0",
+    "axios": "^1.6.8",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "octokit": "^3.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
