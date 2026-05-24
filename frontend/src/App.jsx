@@ -40,9 +40,10 @@ function AppContent() {
     if (authLoading || handlingCallback.current) return;
 
     // ── Case 3: Session resolved and confirmed not authenticated ──────────────
+    const publicRoutes = ['/', '/demo'];
     if (sessionResolved && !authenticated) {
-      if (location.pathname !== '/') {
-        navigate('/', { replace: true });
+      if (!publicRoutes.includes(location.pathname)) {
+      navigate('/', { replace: true });
       }
     }
   }, [location.search, location.pathname, authenticated, authLoading, sessionResolved]);
