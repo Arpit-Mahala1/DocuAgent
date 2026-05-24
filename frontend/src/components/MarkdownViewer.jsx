@@ -11,7 +11,7 @@ const MarkdownViewer = ({ markdown }) => {
   return (
     <ReactMarkdown
       className="prose prose-sm prose-invert max-w-none"
-      rehypePlugins={[rehypeHighlight]}
+      rehypePlugins={[[rehypeHighlight, { ignoreMissing: true }]]}
     >
       {markdown}
     </ReactMarkdown>

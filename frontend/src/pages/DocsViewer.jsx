@@ -5,6 +5,111 @@ import DocsSidebar from '../components/DocsSidebar.jsx';
 import MarkdownViewer from '../components/MarkdownViewer.jsx';
 import toast from 'react-hot-toast';
 
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+/** Convert a flat list of paths into a nested tree object */
+function buildTree(paths) {
+  const root = {};
+  for (const path of paths) {
+    const parts = path.split('/');
+    let node = root;
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      if (i === parts.length - 1) {
+        // leaf = file
+        node[part] = null;
+      } else {
+        if (!node[part] || node[part] === null) node[part] = {};
+        node = node[part];
+      }
+    }
+  }
+  return root;
+}
+
+/** Get a simple file-extension icon */
+function fileIcon(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  const map = {
+    js: '🟨', jsx: '🟨', ts: '🔷', tsx: '🔷',
+    json: '📋', md: '📝', css: '🎨', html: '🌐',
+    py: '🐍', sh: '⚙️', yml: '⚙️', yaml: '⚙️',
+    env: '🔒', gitignore: '👁️', lock: '🔒',
+    png: '🖼️', jpg: '🖼️', jpeg: '🖼️', svg: '🖼️', ico: '🖼️',
+  };
+  return map[ext] || '📄';
+}
+
+/** Recursive tree node component */
+const TreeNode = ({ name, node, depth = 0 }) => {
+  const isFolder = node !== null && typeof node === 'object';
+  const [open, setOpen] = useState(depth < 2); // top two levels open by default
+
+  const indent = depth * 14;
+
+  if (!isFolder) {
+    return (
+      <div
+        style={{ paddingLeft: indent + 20 }}
+        className="flex items-center gap-1.5 py-0.5 pr-2 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded cursor-default select-none"
+      >
+        <span>{fileIcon(name)}</span>
+        <span className="truncate">{name}</span>
+      </div>
+    );
+  }
+
+  const children = Object.entries(node).sort(([aName, aVal], [bName, bVal]) => {
+    // folders first, then files, both alphabetical
+    const aIsFolder = aVal !== null && typeof aVal === 'object';
+    const bIsFolder = bVal !== null && typeof bVal === 'object';
+    if (aIsFolder !== bIsFolder) return aIsFolder ? -1 : 1;
+    return aName.localeCompare(bName);
+  });
+
+  return (
+    <div>
+      <div
+        style={{ paddingLeft: indent }}
+        className="flex items-center gap-1.5 py-0.5 pr-2 text-sm font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded cursor-pointer select-none"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="text-xs text-[var(--color-text-muted)] w-3 text-center">{open ? '▾' : '▸'}</span>
+        <span>📁</span>
+        <span className="truncate">{name}</span>
+      </div>
+      {open && (
+        <div>
+          {children.map(([childName, childNode]) => (
+            <TreeNode key={childName} name={childName} node={childNode} depth={depth + 1} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/** Full file tree rendered from a flat path list */
+const FileTree = ({ paths }) => {
+  const tree = buildTree(paths);
+  const entries = Object.entries(tree).sort(([aName, aVal], [bName, bVal]) => {
+    const aIsFolder = aVal !== null && typeof aVal === 'object';
+    const bIsFolder = bVal !== null && typeof bVal === 'object';
+    if (aIsFolder !== bIsFolder) return aIsFolder ? -1 : 1;
+    return aName.localeCompare(bName);
+  });
+
+  return (
+    <div className="text-sm font-mono">
+      {entries.map(([name, node]) => (
+        <TreeNode key={name} name={name} node={node} depth={0} />
+      ))}
+    </div>
+  );
+};
+
+// ── main component ────────────────────────────────────────────────────────────
+
 const DocsViewer = () => {
   const { owner, repo } = useParams();
   const [files, setFiles] = useState([]);
@@ -24,7 +129,6 @@ const DocsViewer = () => {
       .get(`/api/repo/${owner}/${repo}/tree`)
       .then((res) => {
         const raw = res.data.files || [];
-        // Backend may return objects {path, size, sha} or plain strings — normalise to strings
         setRepoFiles(raw.map((f) => (typeof f === 'object' && f !== null ? f.path : f)));
       })
       .catch(() => toast.error('Failed to load repository file tree'))
@@ -43,10 +147,7 @@ const DocsViewer = () => {
   }, [owner, repo]);
 
   useEffect(() => {
-    if (!selectedFile) {
-      setContent('');
-      return;
-    }
+    if (!selectedFile) { setContent(''); return; }
     setLoadingFile(true);
     apiClient
       .get(`/api/docs/${owner}/${repo}/${selectedFile}`)
@@ -57,31 +158,21 @@ const DocsViewer = () => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      apiClient
-        .get('/api/agent-logs')
-        .then((res) => setLogs(res.data.logs || []))
-        .catch(() => {});
+      apiClient.get('/api/agent-logs').then((res) => setLogs(res.data.logs || [])).catch(() => {});
     }, 3000);
-
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    if (loadingDocs) {
-      setStatusMessage('Generating documentation...');
-    } else if (logs.length > 0) {
-      setStatusMessage('Recent generation activity available below.');
-    } else if (files.length > 0) {
-      setStatusMessage('Docs are up to date for the selected repository.');
-    } else {
-      setStatusMessage('No generated docs found yet.');
-    }
+    if (loadingDocs) setStatusMessage('Generating documentation...');
+    else if (logs.length > 0) setStatusMessage('Recent generation activity available below.');
+    else if (files.length > 0) setStatusMessage('Docs are up to date for the selected repository.');
+    else setStatusMessage('No generated docs found yet.');
   }, [loadingDocs, logs, files]);
 
   const handleRegenerate = async () => {
     setLoadingDocs(true);
     setStatusMessage('Triggering generation...');
-
     try {
       await apiClient.post('/api/generate', { owner, repo });
       toast.success('Documentation generation started');
@@ -140,13 +231,8 @@ const DocsViewer = () => {
             {loadingTree ? (
               <p className="text-[var(--color-text-muted)]">Loading file tree…</p>
             ) : repoFiles.length > 0 ? (
-              <div className="space-y-1 max-h-[40vh] overflow-y-auto text-sm">
-                {repoFiles.slice(0, 120).map((path) => (
-                  <div key={path} className="truncate px-2 py-1 rounded hover:bg-[var(--color-surface-hover)]">{path}</div>
-                ))}
-                {repoFiles.length > 120 && (
-                  <div className="px-2 py-1 text-[var(--color-text-muted)]">...and {repoFiles.length - 120} more files</div>
-                )}
+              <div className="max-h-[40vh] overflow-y-auto">
+                <FileTree paths={repoFiles} />
               </div>
             ) : (
               <p className="text-[var(--color-text-muted)]">No repo files available.</p>
@@ -188,15 +274,20 @@ const DocsViewer = () => {
           ) : (
             <div className="space-y-4">
               <section className="rounded-xl bg-[var(--color-surface)] p-4 shadow-sm">
-                <h3 className="text-lg font-semibold mb-3">Repository file tree</h3>
+                <h3 className="text-lg font-semibold mb-3">
+                  Repository file tree
+                  {repoFiles.length > 0 && (
+                    <span className="ml-2 text-sm font-normal text-[var(--color-text-muted)]">
+                      ({repoFiles.length} files)
+                    </span>
+                  )}
+                </h3>
                 {loadingTree ? (
                   <p className="text-[var(--color-text-muted)]">Loading repo file tree…</p>
                 ) : repoFiles.length > 0 ? (
-                  <ul className="space-y-2 text-sm">
-                    {repoFiles.map((file) => (
-                      <li key={file} className="truncate rounded px-2 py-1 bg-[var(--color-bg)]/30">{file}</li>
-                    ))}
-                  </ul>
+                  <div className="overflow-y-auto max-h-[70vh]">
+                    <FileTree paths={repoFiles} />
+                  </div>
                 ) : (
                   <p className="text-[var(--color-text-muted)]">No repository files available.</p>
                 )}

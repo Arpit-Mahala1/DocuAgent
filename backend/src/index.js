@@ -142,8 +142,14 @@ app.get("/api/docs/:owner/:repo", async (req, res, next) => {
   try {
     const github = new GitHubService(token);
     const fileEntries = await github.listRepoFiles(owner, repo);
+    
+    // Collect .md files from both docs/ folder and repo root
     const docsFiles = fileEntries
-      .filter((item) => item.path.toLowerCase().startsWith("docs/") && item.path.toLowerCase().endsWith(".md"))
+      .filter((item) => {
+        const isDocsFolderMd = item.path.toLowerCase().startsWith("docs/") && item.path.toLowerCase().endsWith(".md");
+        const isRootMd = !item.path.includes("/") && item.path.toLowerCase().endsWith(".md");
+        return isDocsFolderMd || isRootMd;
+      })
       .map((item) => item.path);
 
     return res.json({ success: true, files: docsFiles });
@@ -167,8 +173,22 @@ app.get("/api/docs/:owner/:repo/*", async (req, res, next) => {
 
   try {
     const github = new GitHubService(token);
-    const fileContent = await github.getFileContent(owner, repo, filepath);
-    return res.json({ success: true, content: fileContent.content });
+    
+    // First try docs/{filename}
+    try {
+      const docsPath = `docs/${filepath}`;
+      const fileContent = await github.getFileContent(owner, repo, docsPath);
+      return res.json({ success: true, content: fileContent.content });
+    } catch (docsErr) {
+      // If not found in docs/, try root directory
+      try {
+        const fileContent = await github.getFileContent(owner, repo, filepath);
+        return res.json({ success: true, content: fileContent.content });
+      } catch (rootErr) {
+        // File not found in either location
+        throw rootErr;
+      }
+    }
   } catch (error) {
     next(error);
   }
