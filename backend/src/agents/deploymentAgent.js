@@ -77,7 +77,19 @@ export async function runDeploymentChangeAgent({ owner, repo, token, branch = "m
     ? `${normalizedEntry}\n\n${existingContent}`
     : formatChangelogEntry(normalizedEntry);
 
-  await github.createOrUpdateFile(token, owner, repo, docsPath, finalContent, "docs: update CHANGELOG.md by DeploymentChangeAgent", existingSha, branch);
+  // Always write to main (fallback to master) to avoid using commit SHAs as branch names
+  const preferredBranches = ["main", "master"];
+  let writeErr = null;
+  for (const b of preferredBranches) {
+    try {
+      await github.createOrUpdateFile(token, owner, repo, docsPath, finalContent, "docs: update CHANGELOG.md by DeploymentChangeAgent", existingSha, b);
+      writeErr = null;
+      break;
+    } catch (err) {
+      writeErr = err;
+    }
+  }
+  if (writeErr) throw writeErr;
 
   return {
     success: true,

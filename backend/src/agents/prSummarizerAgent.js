@@ -30,11 +30,13 @@ export async function runPRSummarizerAgent({ owner, repo, token, prNumber }) {
   const github = new GitHubService(token);
   const octokit = new Octokit({ auth: token });
 
-  const prResponse = await octokit.rest.pulls.get({ owner, repo, pull_number: Number(prNumber) });
+  const prNum = parseInt(prNumber, 10);
+  if (Number.isNaN(prNum)) throw new Error("Invalid prNumber provided");
+  const prResponse = await octokit.rest.pulls.get({ owner, repo, pull_number: prNum });
   const pr = prResponse.data;
   const branch = pr.base?.ref || "main";
 
-  const filesResponse = await octokit.rest.pulls.listFiles({ owner, repo, pull_number: Number(prNumber), per_page: 100 });
+  const filesResponse = await octokit.rest.pulls.listFiles({ owner, repo, pull_number: prNum, per_page: 100 });
   const changedFiles = filesResponse.data.filter((file) => file.filename.endsWith(".js") || file.filename.endsWith(".ts") || file.filename.endsWith(".py"));
 
   if (changedFiles.length === 0) {
@@ -90,7 +92,7 @@ export async function runPRSummarizerAgent({ owner, repo, token, prNumber }) {
   return {
     success: true,
     docsPath,
-    prNumber,
+    prNumber: prNum,
     changedFiles: changedFileNames,
     content: summaryMarkdown
   };

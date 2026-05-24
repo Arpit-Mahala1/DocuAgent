@@ -224,6 +224,18 @@ const DocsViewer = (props) => {
     try {
       await apiClient.post('/api/generate', { owner, repo });
       toast.success('Documentation generation started');
+      // Refresh docs list and currently selected file content
+      try {
+        const res = await apiClient.get(`/api/docs/${owner}/${repo}`);
+        const docs = res.data.files || [];
+        setFiles(docs);
+        if (docs.length > 0 && selectedFile) {
+          const fileRes = await apiClient.get(`/api/docs/${owner}/${repo}/${selectedFile}`);
+          setContent(fileRes.data.content || '');
+        }
+      } catch (e) {
+        // ignore refresh errors
+      }
     } catch (err) {
       toast.error('Failed to start generation');
       setStatusMessage('Failed to trigger generation.');
@@ -243,6 +255,18 @@ const DocsViewer = (props) => {
     try {
       await apiClient.post('/api/docs/api-reference', { owner, repo });
       toast.success('API docs generation started');
+      // Refresh docs list and file content
+      try {
+        const res = await apiClient.get(`/api/docs/${owner}/${repo}`);
+        const docs = res.data.files || [];
+        setFiles(docs);
+        if (docs.length > 0 && selectedFile) {
+          const fileRes = await apiClient.get(`/api/docs/${owner}/${repo}/${selectedFile}`);
+          setContent(fileRes.data.content || '');
+        }
+      } catch (e) {
+        // ignore refresh errors
+      }
     } catch (err) {
       toast.error('Failed to start API docs generation');
       setStatusMessage('Failed to trigger API docs generation.');
@@ -285,6 +309,18 @@ const DocsViewer = (props) => {
     try {
       await apiClient.post('/api/docs/changelog', { owner, repo });
       toast.success('Changelog update started');
+      // Refresh docs list and file content
+      try {
+        const res = await apiClient.get(`/api/docs/${owner}/${repo}`);
+        const docs = res.data.files || [];
+        setFiles(docs);
+        if (docs.length > 0 && selectedFile) {
+          const fileRes = await apiClient.get(`/api/docs/${owner}/${repo}/${selectedFile}`);
+          setContent(fileRes.data.content || '');
+        }
+      } catch (e) {
+        // ignore refresh errors
+      }
     } catch (err) {
       toast.error('Failed to start changelog update');
       setStatusMessage('Failed to trigger changelog update.');

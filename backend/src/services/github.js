@@ -222,6 +222,15 @@ export class GitHubService {
       branch = branchOrSha || "main";
     }
 
+    // If branch looks like a commit SHA (40 hex chars), treat as unspecified and use main
+    try {
+      if (typeof branch === 'string' && /^[0-9a-f]{40}$/i.test(branch)) {
+        branch = 'main';
+      }
+    } catch (e) {
+      branch = branch || 'main';
+    }
+
     const octokit = this._getOctokit(token);
 
     // Proactively fetch sha if not provided, to avoid collision (409 Conflict)

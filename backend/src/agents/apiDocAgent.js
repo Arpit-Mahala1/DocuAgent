@@ -159,7 +159,20 @@ export async function runAPIDocAgent({ owner, repo, token, branch = "main" }) {
     // File may not exist yet
   }
 
-  await github.createOrUpdateFile(token, owner, repo, docsPath, apiDocsMarkdown, "docs: auto-generate API_REFERENCE.md by APIDocAgent", existingSha, branch);
+  // Prefer writing to 'main' branch; fallback to 'master' if main doesn't exist
+  const preferredBranches = ["main", "master"];
+  let writeErr = null;
+  for (const b of preferredBranches) {
+    try {
+      await github.createOrUpdateFile(token, owner, repo, docsPath, apiDocsMarkdown, "docs: auto-generate API_REFERENCE.md by APIDocAgent", existingSha, b);
+      writeErr = null;
+      break;
+    } catch (err) {
+      writeErr = err;
+      // try next branch
+    }
+  }
+  if (writeErr) throw writeErr;
 
   return {
     success: true,
