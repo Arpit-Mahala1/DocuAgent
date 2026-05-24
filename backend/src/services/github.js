@@ -50,7 +50,9 @@ export class GitHubService {
         full_name: repo.full_name,
         owner: repo.owner.login,
         private: repo.private,
-        html_url: repo.html_url
+        description: repo.description,
+        html_url: repo.html_url,
+        updated_at: repo.updated_at
       }));
     } catch (error) {
       console.error("[GitHubService] Failed to list repositories:", error.message);

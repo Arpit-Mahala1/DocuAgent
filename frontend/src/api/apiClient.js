@@ -5,10 +5,11 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// Attach token if present in localStorage
+// Attach token if present in localStorage and provide fallback query param
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
-  if (token) {
+  if (token && token !== 'undefined') {
+    config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;

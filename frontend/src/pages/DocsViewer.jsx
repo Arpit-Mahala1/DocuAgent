@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import apiClient from '../api/apiClient.js';
 import DocsSidebar from '../components/DocsSidebar.jsx';
@@ -8,31 +8,53 @@ import toast from 'react-hot-toast';
 const DocsViewer = () => {
   const { owner, repo } = useParams();
   const [files, setFiles] = useState([]);
+  const [repoFiles, setRepoFiles] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [content, setContent] = useState('');
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [loadingFile, setLoadingFile] = useState(false);
+  const [loadingTree, setLoadingTree] = useState(false);
   const [logs, setLogs] = useState([]);
+  const [statusMessage, setStatusMessage] = useState('Ready to regenerate docs.');
+  const [activeTab, setActiveTab] = useState('docs');
 
-  // Fetch list of markdown files
   useEffect(() => {
+    setLoadingTree(true);
+    apiClient
+      .get(`/api/repo/${owner}/${repo}/tree`)
+      .then((res) => {
+        const raw = res.data.files || [];
+        // Backend may return objects {path, size, sha} or plain strings — normalise to strings
+        setRepoFiles(raw.map((f) => (typeof f === 'object' && f !== null ? f.path : f)));
+      })
+      .catch(() => toast.error('Failed to load repository file tree'))
+      .finally(() => setLoadingTree(false));
+
     apiClient
       .get(`/api/docs/${owner}/${repo}`)
-      .then((res) => setFiles(res.data.files || []))
-      .catch(() => toast.error('Failed to load doc list'));
+      .then((res) => {
+        const docs = res.data.files || [];
+        setFiles(docs);
+        if (docs.length > 0 && !selectedFile) {
+          setSelectedFile(docs[0]);
+        }
+      })
+      .catch(() => toast.error('Failed to load docs list'));
   }, [owner, repo]);
 
-  // Fetch selected file content
   useEffect(() => {
-    if (!selectedFile) return;
+    if (!selectedFile) {
+      setContent('');
+      return;
+    }
     setLoadingFile(true);
     apiClient
       .get(`/api/docs/${owner}/${repo}/${selectedFile}`)
       .then((res) => setContent(res.data.content || ''))
+      .catch(() => toast.error('Failed to load file content'))
       .finally(() => setLoadingFile(false));
   }, [owner, repo, selectedFile]);
 
-  // Poll agent logs every 3 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       apiClient
@@ -40,55 +62,160 @@ const DocsViewer = () => {
         .then((res) => setLogs(res.data.logs || []))
         .catch(() => {});
     }, 3000);
+
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (loadingDocs) {
+      setStatusMessage('Generating documentation...');
+    } else if (logs.length > 0) {
+      setStatusMessage('Recent generation activity available below.');
+    } else if (files.length > 0) {
+      setStatusMessage('Docs are up to date for the selected repository.');
+    } else {
+      setStatusMessage('No generated docs found yet.');
+    }
+  }, [loadingDocs, logs, files]);
+
   const handleRegenerate = async () => {
     setLoadingDocs(true);
+    setStatusMessage('Triggering generation...');
+
     try {
-      await apiClient.post('/api/docs/parse', { owner, repo });
+      await apiClient.post('/api/generate', { owner, repo });
       toast.success('Documentation generation started');
     } catch (err) {
       toast.error('Failed to start generation');
+      setStatusMessage('Failed to trigger generation.');
     } finally {
       setLoadingDocs(false);
     }
   };
 
   return (
-    <div className="flex h-screen bg-[var(--color-bg)] text-[var(--color-text-primary)]">
-      <aside className="w-64 bg-[var(--color-surface)] p-4 overflow-y-auto hidden md:block">
-        <DocsSidebar files={files} onSelect={setSelectedFile} selected={selectedFile} />
-      </aside>
-      <main className="flex-1 flex flex-col">
-        <header className="flex items-center justify-between p-4 bg-[var(--color-surface)] shadow-md">
-          <h2 className="text-xl font-semibold">{owner}/{repo} Documentation</h2>
-          <button
-            onClick={handleRegenerate}
-            disabled={loadingDocs}
-            className="px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white rounded disabled:opacity-50"
-          >
-            {loadingDocs ? 'Generating…' : 'Regenerate Docs'}
-          </button>
-        </header>
-        <section className="flex-1 overflow-y-auto p-4">
-          {loadingFile ? (
-            <div className="flex justify-center items-center h-full">
-              <div className="loader border-t-4 border-b-4 border-[var(--color-primary)] rounded-full w-12 h-12 animate-spin" />
+    <div className="flex min-h-screen flex-col bg-[var(--color-bg)] text-[var(--color-text-primary)]">
+      <header className="p-4 bg-[var(--color-surface)] shadow-md">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold">{owner}/{repo}</h2>
+            <p className="mt-1 text-[var(--color-text-muted)]">{statusMessage}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setActiveTab('docs')}
+              className={`px-4 py-2 rounded ${activeTab === 'docs' ? 'bg-[var(--color-primary)] text-white' : 'bg-[var(--color-surface)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]'}`}
+            >
+              Docs Preview
+            </button>
+            <button
+              onClick={() => setActiveTab('files')}
+              className={`px-4 py-2 rounded ${activeTab === 'files' ? 'bg-[var(--color-primary)] text-white' : 'bg-[var(--color-surface)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]'}`}
+            >
+              Repo File Tree
+            </button>
+            <button
+              onClick={handleRegenerate}
+              disabled={loadingDocs}
+              className="inline-flex items-center justify-center px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white rounded disabled:opacity-50"
+            >
+              {loadingDocs ? 'Generating…' : 'Regenerate Docs'}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex flex-1 overflow-hidden">
+        <aside className="hidden w-80 flex-col gap-4 border-r border-[var(--color-border)] bg-[var(--color-surface)] p-4 overflow-y-auto md:flex">
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Generated docs</h3>
+            {files.length > 0 ? (
+              <DocsSidebar files={files} onSelect={setSelectedFile} selected={selectedFile} />
+            ) : (
+              <p className="text-[var(--color-text-muted)]">No docs found yet. Regenerate to create docs.</p>
+            )}
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Repository files</h3>
+            {loadingTree ? (
+              <p className="text-[var(--color-text-muted)]">Loading file tree…</p>
+            ) : repoFiles.length > 0 ? (
+              <div className="space-y-1 max-h-[40vh] overflow-y-auto text-sm">
+                {repoFiles.slice(0, 120).map((path) => (
+                  <div key={path} className="truncate px-2 py-1 rounded hover:bg-[var(--color-surface-hover)]">{path}</div>
+                ))}
+                {repoFiles.length > 120 && (
+                  <div className="px-2 py-1 text-[var(--color-text-muted)]">...and {repoFiles.length - 120} more files</div>
+                )}
+              </div>
+            ) : (
+              <p className="text-[var(--color-text-muted)]">No repo files available.</p>
+            )}
+          </div>
+        </aside>
+
+        <main className="flex-1 overflow-y-auto p-4">
+          {activeTab === 'docs' ? (
+            <div className="space-y-4">
+              <div className="md:hidden">
+                <label className="block mb-2 text-sm font-medium">Choose doc file</label>
+                <select
+                  value={selectedFile || ''}
+                  onChange={(e) => setSelectedFile(e.target.value)}
+                  className="w-full rounded bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text-primary)]"
+                >
+                  {files.length === 0 ? (
+                    <option value="">No docs available</option>
+                  ) : (
+                    files.map((file) => (
+                      <option key={file} value={file}>{file}</option>
+                    ))
+                  )}
+                </select>
+              </div>
+              <div className="rounded-xl bg-[var(--color-surface)] p-4 shadow-sm">
+                {loadingFile ? (
+                  <div className="flex h-72 items-center justify-center">
+                    <div className="loader" />
+                  </div>
+                ) : content ? (
+                  <MarkdownViewer markdown={content} />
+                ) : (
+                  <p className="text-[var(--color-text-muted)]">Select a generated doc file to preview its contents.</p>
+                )}
+              </div>
             </div>
           ) : (
-            <MarkdownViewer markdown={content} />
+            <div className="space-y-4">
+              <section className="rounded-xl bg-[var(--color-surface)] p-4 shadow-sm">
+                <h3 className="text-lg font-semibold mb-3">Repository file tree</h3>
+                {loadingTree ? (
+                  <p className="text-[var(--color-text-muted)]">Loading repo file tree…</p>
+                ) : repoFiles.length > 0 ? (
+                  <ul className="space-y-2 text-sm">
+                    {repoFiles.map((file) => (
+                      <li key={file} className="truncate rounded px-2 py-1 bg-[var(--color-bg)]/30">{file}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-[var(--color-text-muted)]">No repository files available.</p>
+                )}
+              </section>
+            </div>
           )}
-        </section>
-        <footer className="h-32 overflow-y-auto p-2 bg-[var(--color-surface)] text-sm">
-          <h3 className="font-medium mb-1">Agent Logs (latest 50)</h3>
-          <ul>
-            {logs.map((log, idx) => (
-              <li key={idx}>{log}</li>
-            ))}
-          </ul>
-        </footer>
-      </main>
+        </main>
+      </div>
+
+      <footer className="bg-[var(--color-surface)] p-4 text-sm text-[var(--color-text-muted)] border-t border-[var(--color-border)]">
+        <h3 className="font-semibold mb-2">Live generation output</h3>
+        <div className="space-y-2">
+          {logs.length > 0 ? (
+            logs.map((log, idx) => <div key={idx}>{log}</div>)
+          ) : (
+            <div>Awaiting generation output...</div>
+          )}
+        </div>
+      </footer>
     </div>
   );
 };

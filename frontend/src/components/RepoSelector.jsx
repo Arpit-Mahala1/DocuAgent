@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import apiClient from '../api/apiClient.js';
-import toast from 'react-hot-toast';
 
-// Simple searchable dropdown for user's GitHub repos
-// Expects props: repos (array of {owner, name, description}), onSelect(owner, repo), loading
+// Searchable dropdown for user's GitHub repos
+// Props: repos (array of {owner, name, description}), onSelect(owner, repo), loading
 
 const RepoSelector = ({ repos, onSelect, loading }) => {
   const [query, setQuery] = useState('');
@@ -19,8 +17,11 @@ const RepoSelector = ({ repos, onSelect, loading }) => {
 
   const handleSelect = (repo) => {
     if (loading) return;
+    // ✅ FIXED: removed the duplicate toast.success here.
+    // Dashboard's handleConnectRepo already shows "Connected owner/repo"
+    // after the API call succeeds. Showing one here too caused the double toast.
     onSelect(repo.owner, repo.name);
-    toast.success(`Requested to connect ${repo.owner}/${repo.name}`);
+    setQuery(''); // close the dropdown after selection
   };
 
   return (
@@ -38,10 +39,15 @@ const RepoSelector = ({ repos, onSelect, loading }) => {
             filtered.map((repo) => (
               <li
                 key={`${repo.owner}/${repo.name}`}
-                className="px-4 py-2 hover:bg-[var(--color-primary)] hover:text-white cursor-pointer"
+                className={`px-4 py-2 cursor-pointer hover:bg-[var(--color-primary)] hover:text-white ${
+                  loading ? 'opacity-50 pointer-events-none' : ''
+                }`}
                 onClick={() => handleSelect(repo)}
               >
                 {repo.owner}/{repo.name}
+                {repo.connected && (
+                  <span className="ml-2 text-xs text-green-400">● Connected</span>
+                )}
               </li>
             ))
           ) : (

@@ -25,7 +25,7 @@ const Landing = () => {
         onClick={handleConnect}
         className="mt-8 px-6 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white rounded-lg shadow-glow text-lg font-medium"
       >
-        Connect GitHub
+        Connect with GitHub
       </button>
       <section className="mt-16 w-full max-w-5xl">
         <h2 className="text-2xl font-semibold mb-6 text-center">Features</h2>
