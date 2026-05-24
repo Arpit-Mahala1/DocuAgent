@@ -4,7 +4,7 @@
 ## Overview
 -----------
 
-DocuAgent is an AI-powered documentation assistant designed to automatically generate, update, and manage high-quality technical documentation for GitHub repositories. It integrates with GitHub using Octokit and utilizes the Anthropic Claude API to inspect file structures, analyze codebases, and write professional Markdown documentation.
+DocuAgent is an AI-powered documentation tool designed to automatically generate, update, and manage high-quality technical documentation for GitHub repositories. It utilizes the Anthropic Claude API and the Agentic SDK to inspect file structures, analyze codebases, and write professional Markdown documentation.
 
 ## Tech Stack
 -------------
@@ -16,13 +16,13 @@ DocuAgent is an AI-powered documentation assistant designed to automatically gen
 * **Frontend**: React + Vite
 * **Styling**: Tailwind CSS v4 (Glassmorphic dark design)
 
-## Installation and Startup
----------------------------
+## Installation and Setup
+-------------------------
 
 ### Backend Setup
 
 1. Navigate to the backend directory: `cd backend`
-2. Configure environment variables: `copy .env.example .env`
+2. Configure the environment variables: `copy .env.example .env`
 3. Open `.env` and configure your credentials:
 ```env
 PORT=3001
@@ -43,7 +43,7 @@ GITHUB_CALLBACK_URL=http://localhost:3001/auth/github/callback
 The frontend will run on `http://localhost:5173`. When loaded, it will check the health of the Express API running on `http://localhost:3001` automatically.
 
 ## Architecture Summary
----------------------
+----------------------
 
 The DocuAgent application consists of two main components: the backend and the frontend.
 
@@ -52,7 +52,7 @@ The DocuAgent application consists of two main components: the backend and the f
 The backend is built using Node.js and Express, and is responsible for:
 
 * Handling GitHub OAuth flow
-* Inspecting file structures and analyzing codebases using the Anthropic Claude API
+* Inspecting file structures and analyzing codebases using the Anthropic Claude API and the Agentic SDK
 * Generating and updating technical documentation
 * Providing API endpoints for the frontend to interact with
 
@@ -92,29 +92,36 @@ The frontend directory layout is as follows:
 
 The backend provides the following API endpoints:
 
-* **GET /health**: Returns the health status of the application
-* **POST /auth/github**: Handles GitHub OAuth flow
-* **GET /api/docs**: Returns generated technical documentation
+* **GET /health**: Returns a health check response
+* **GET /auth/github**: Initiates the GitHub OAuth flow
+* **GET /auth/github/callback**: Handles the GitHub OAuth callback
+* **POST /api/docs**: Generates and updates technical documentation
 * **POST /api/connect-repo**: Connects a GitHub repository to the application
-* **POST /webhook**: Handles webhook events from GitHub
 
 ## GitHub OAuth Flow
 ---------------------
 
-The application uses the following GitHub OAuth flow:
+The GitHub OAuth flow is as follows:
 
-1. The user clicks the "Connect GitHub" button on the dashboard.
+1. The user clicks the **Connect GitHub** button on the dashboard.
 2. The user is redirected to the backend `/auth/github` endpoint, which builds the scopes and redirects to GitHub's authorization page.
 3. Upon approval, GitHub redirects back to `/auth/github/callback` with an authorization code.
 4. The backend exchanges this code for an access token via Axios and redirects the user back to the React application passing the token.
-5. React retrieves the token, sanitizes the URL bar, and keeps it in local state for safe repository write-back actions.
+5. The React application retrieves the token, sanitizes the URL bar, and keeps it in local state for safe repository write-back actions.
+
+## Troubleshooting
+------------------
+
+* Make sure to configure the environment variables correctly in the `.env` file.
+* Check the console logs for any error messages.
+* Ensure that the GitHub OAuth credentials are correct and properly configured.
 
 ## Contributing
 ------------
 
-Contributions to the DocuAgent project are welcome. Please submit a pull request with your changes and a brief description of what you've added or fixed.
+Contributions are welcome! Please submit a pull request with your changes and a brief description of what you've added or fixed.
 
 ## License
 -------
 
-The DocuAgent project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+DocuAgent is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
