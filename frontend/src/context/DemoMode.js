@@ -124,7 +124,7 @@ GitHub OAuth callback handler.
 **Response:**
 \`\`\`json
 {
-  "redirectUrl": "http://localhost:5173?token=<JWT_TOKEN>"
+  "redirectUrl": "${import.meta.env.VITE_API_URL}?token=<JWT_TOKEN>"
 }
 \`\`\`
 

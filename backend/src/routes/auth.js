@@ -164,7 +164,7 @@ router.get("/github/callback", async (req, res, next) => {
 
     // Redirect to frontend with token in URL so cross-origin local dev works.
     // (Cookie set on :3001 is not readable by frontend on :3000/:5173)
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    const frontendUrl = process.env.FRONTEND_URL;
 
     try {
       res.cookie('docuagent_token', accessToken, {
