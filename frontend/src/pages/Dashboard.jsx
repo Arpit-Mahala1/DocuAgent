@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import { Link } from 'react-router-dom';
 import apiClient from '../api/apiClient.js';
 import RepoCard from '../components/RepoCard.jsx';
 import RepoSelector from '../components/RepoSelector.jsx';
@@ -91,7 +92,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text-primary)] page-transition">
       <nav className="flex items-center justify-between p-4 bg-[var(--color-surface)] shadow-md">
-        <Logo />
+        <Link to="/"><Logo /></Link>
         <div className="flex items-center space-x-3">
           {user && (
             <>
