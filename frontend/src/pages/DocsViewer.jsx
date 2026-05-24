@@ -3,6 +3,7 @@ import { useParams, useLocation } from 'react-router-dom';
 import apiClient from '../api/apiClient.js';
 import DocsSidebar from '../components/DocsSidebar.jsx';
 import MarkdownViewer from '../components/MarkdownViewer.jsx';
+import { BackButton } from '../components/BackButton.jsx';
 import toast from 'react-hot-toast';
 import { DEMO_DOCS_LIST, DEMO_REPO_FILES, DEMO_DOCS_CONTENT, DEMO_OWNER, DEMO_REPO } from '../context/DemoMode.js';
 
@@ -304,6 +305,7 @@ const DocsViewer = (props) => {
   return (
     <div className="flex min-h-screen flex-col bg-[var(--color-bg)] text-[var(--color-text-primary)]">
       <header className="p-4 bg-[var(--color-surface)] shadow-md">
+        <BackButton to="/dashboard" />
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="flex items-center gap-2">
