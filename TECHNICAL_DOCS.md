@@ -4,100 +4,125 @@
 ## Overview
 -----------
 
-DocuAgent is an AI-powered documentation assistant designed to automatically generate, update, and manage high-quality technical documentation for GitHub repositories. It utilizes the Anthropic Claude API and the Agentic SDK to inspect file structures, analyze codebases, and write professional Markdown documentations back to GitHub.
+DocuAgent is an AI-powered documentation generation tool designed to automate the process of creating and updating technical documentation for GitHub repositories. The application utilizes a combination of natural language processing (NLP) and machine learning algorithms to analyze codebases and generate high-quality documentation.
 
 ## Tech Stack and Key Dependencies
----------------------------------
+------------------------------------
 
-* **Backend Core**: Node.js & Express (ES Modules)
-* **LLM Engine**: Anthropic Claude (`@anthropic-ai/sdk`)
-* **Agent Framework**: Agentic SDK (`@agentic/core`)
-* **GitHub Integration**: Octokit (`octokit` & `axios`)
-* **Frontend**: React + Vite
-* **Styling**: Tailwind CSS v4 (Glassmorphic dark design)
+The DocuAgent application is built using the following technologies:
+
+* **Backend Runtime:** Node.js 20 (ES Modules)
+* **Backend Framework:** Express.js
+* **AI/LLM:** Groq SDK with Llama 3.3
+* **GitHub Integration:** Octokit + GitHub REST API
+* **Frontend Framework:** React 18
+* **Frontend Tooling:** Vite 5
+* **Styling:** Tailwind CSS 4
+* **UI Components:** Lucide React icons, React Hot Toast
+* **Markdown:** react-markdown + rehype-highlight
 
 ## Installation and Startup Instructions
------------------------------------------
+------------------------------------------
+
+### Prerequisites
+
+* **Node.js 18+** installed
+* **GitHub account** with OAuth app credentials
+* **Groq API key** (free at [console.groq.com](https://console.groq.com))
 
 ### Backend Setup
 
-1. Navigate to the backend directory: `cd backend`
-2. Configure the environment variables: `copy .env.example .env`
-3. Open `.env` and configure your credentials:
-```env
-PORT=3001
-FRONTEND_URL=http://localhost:5173
-ANTHROPIC_API_KEY=your_anthropic_api_key
-GITHUB_CLIENT_ID=your_github_oauth_client_id
-GITHUB_CLIENT_SECRET=your_github_oauth_client_secret
-GITHUB_CALLBACK_URL=http://localhost:3001/auth/github/callback
-```
-4. Run the server in development mode: `npm run dev`
+1. Clone the repository: `git clone https://github.com/your-username/DocuAgent.git`
+2. Navigate to the backend directory: `cd DocuAgent/backend`
+3. Install dependencies: `npm install`
+4. Configure environment variables: `cp .env.example .env` and edit the `.env` file with your Groq API key, GitHub OAuth app credentials, and other settings
+5. Run the development server: `npm run dev`
 
 ### Frontend Setup
 
-1. Navigate to the frontend directory: `cd frontend`
+1. Navigate to the frontend directory: `cd DocuAgent/frontend`
 2. Install dependencies: `npm install`
-3. Start the Vite development server: `npm run dev`
-
-The frontend will run on `http://localhost:5173`. When loaded, it will check the health of the Express API running on `http://localhost:3001` automatically.
+3. Start the development server: `npm run dev`
 
 ## Architecture Summary and Directory Layout
---------------------------------------------
+---------------------------------------------
 
-```text
-/backend
-  /src
-    /agents         ← AI agent loop and prompt configurations
-    /routes         ← Express routing endpoints (OAuth, doc generation, health)
-    /services       ← External APIs (GitHub Octokit wrappers)
-    /utils          ← Helpers and validation
-    index.js        ← Main server configurations and middleware setup
-  index.js          ← Entrypoint delegation file
-  .env.example      ← Environment configuration template
-/frontend
-  /src
-    App.jsx         ← Dashboard interface with glassmorphism design
-    index.css       ← Tailwind CSS v4 design layers and modern Outfit fonts
-    main.jsx        ← React entry node config
-  vite.config.js    ← Custom Vite and Tailwind integration
-README.md           ← Complete setup documentation
-```
+The DocuAgent application consists of two main components: the backend and the frontend.
+
+### Backend
+
+The backend is built using Node.js and Express.js, and is responsible for handling API requests, interacting with the GitHub API, and generating documentation using the Groq SDK.
+
+* **/src**: Source code for the backend application
+	+ **/agents**: AI agent logic for each doc type
+	+ **/routes**: Express endpoints (OAuth, docs, webhooks)
+	+ **/services**: GitHub API integration
+* **index.js**: Server entrypoint
+* **Dockerfile**: Container image definition
+
+### Frontend
+
+The frontend is built using React and Vite, and is responsible for rendering the user interface and handling user interactions.
+
+* **/src**: Source code for the frontend application
+	+ **/pages**: Landing, Dashboard, DocsViewer
+	+ **/components**: Reusable UI components
+	+ **/context**: Auth context management
+* **vite.config.js**: Vite configuration
+* **tailwind.config.js**: Tailwind theme settings
 
 ## Main APIs and Endpoints
+---------------------------
+
+The DocuAgent backend exposes the following APIs and endpoints:
+
+* **/api/user**: Returns information about the current user
+* **/api/repos**: Returns a list of connected repositories
+* **/api/repo/:owner/:repo/tree**: Returns the file tree for a given repository
+* **/api/docs/:owner/:repo**: Returns the documentation for a given repository
+* **/api/docs/:owner/:repo/***: Returns the content of a specific file in a repository
+* **/api/agent-logs**: Returns the logs for the AI agents
+* **/api/generate**: Triggers the generation of documentation for a given repository
+* **/api/connect-repo**: Connects a new repository to the DocuAgent application
+
+## GitHub OAuth App Setup
+---------------------------
+
+To use the DocuAgent application, you need to set up a GitHub OAuth app and configure the application to use your app credentials.
+
+1. Navigate to [GitHub Settings → Developer settings → OAuth Apps](https://github.com/settings/developers)
+2. Click **New OAuth App**
+3. Fill in the application name, homepage URL, and authorization callback URL
+4. Copy the client ID and client secret into your `.env` file
+
+## Docker and Deployment
 -------------------------
 
-### Authentication Endpoints
+The DocuAgent application can be deployed using Docker and Vercel.
 
-* **GET /auth/github**: Redirects to GitHub's authorization page
-* **GET /auth/github/callback**: Exchanges authorization code for access token and redirects back to React application
+### Build Docker Image
 
-### Documentation Endpoints
+1. Navigate to the backend directory: `cd DocuAgent/backend`
+2. Build the Docker image: `docker build -t docuagent-backend:latest .`
+3. Run the Docker container: `docker run -p 3001:3001 --env-file .env docuagent-backend:latest`
 
-* **GET /api/docs/:owner/:repo**: Retrieves a list of Markdown files in the repository
-* **GET /api/docs/:owner/:repo/***: Retrieves the content of a specific Markdown file
-* **POST /api/generate**: Triggers the documentation generation process for a repository
+### Deploy Frontend
 
-### Repository Endpoints
+1. Navigate to the frontend directory: `cd DocuAgent/frontend`
+2. Deploy the frontend application using Vercel: `vercel deploy`
 
-* **GET /api/repos**: Retrieves a list of connected repositories for the user
-* **POST /api/connect-repo**: Connects a new repository to the user's account
+## Demo Mode
+-------------
 
-### User Endpoints
+The DocuAgent application includes a demo mode that allows you to try out the application without logging in.
 
-* **GET /api/user**: Retrieves the user's information (login, avatar URL)
+1. Click **"Try Demo"** on the landing page
+2. Explore the pre-generated documentation for the DocuAgent repository
+3. See all five agent outputs in action
 
-### Health Endpoints
+## License
+---------
 
-* **GET /health**: Checks the health of the Express API
+The DocuAgent application is licensed under the MIT License. See the LICENSE file for details.
 
-### Webhook Endpoints
-
-* **POST /webhook**: Handles incoming webhooks from GitHub
-
-### Agent Endpoints
-
-* **GET /api/agent-logs**: Retrieves the logs of the AI agent
-* **POST /api/generate**: Triggers the documentation generation process for a repository
-
-Note: This documentation is based on the provided codebase and may not be exhaustive. Additional endpoints or APIs may be present in the codebase.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
