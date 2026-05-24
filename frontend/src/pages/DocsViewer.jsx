@@ -305,7 +305,7 @@ const DocsViewer = (props) => {
   return (
     <div className="flex min-h-screen flex-col bg-[var(--color-bg)] text-[var(--color-text-primary)]">
       <header className="p-4 bg-[var(--color-surface)] shadow-md">
-        <BackButton to="/dashboard" />
+        <BackButton to={isDemoMode ? "/" : "/dashboard"} />
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="flex items-center gap-2">
