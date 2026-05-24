@@ -52,6 +52,7 @@ function AppContent() {
       <Route path="/" element={<Landing />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/docs/:owner/:repo" element={<DocsViewer />} />
+      <Route path="/demo" element={<DocsViewer isDemoMode={true} />} />
     </Routes>
   );
 }

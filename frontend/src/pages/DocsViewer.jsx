@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useParams, useLocation } from 'react-router-dom';
 import apiClient from '../api/apiClient.js';
 import DocsSidebar from '../components/DocsSidebar.jsx';
 import MarkdownViewer from '../components/MarkdownViewer.jsx';
 import toast from 'react-hot-toast';
+import { DEMO_DOCS_LIST, DEMO_REPO_FILES, DEMO_DOCS_CONTENT, DEMO_OWNER, DEMO_REPO } from '../context/DemoMode.js';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -110,20 +111,47 @@ const FileTree = ({ paths }) => {
 
 // ── main component ────────────────────────────────────────────────────────────
 
-const DocsViewer = () => {
-  const { owner, repo } = useParams();
+const DocsViewer = (props) => {
+  const { owner: paramOwner, repo: paramRepo } = useParams();
+  const location = useLocation();
+  const isDemoMode = location.pathname === '/demo';
+  
+  // Use demo data if in demo mode, otherwise use URL params
+  const owner = isDemoMode ? DEMO_OWNER : paramOwner;
+  const repo = isDemoMode ? DEMO_REPO : paramRepo;
+  
   const [files, setFiles] = useState([]);
   const [repoFiles, setRepoFiles] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [content, setContent] = useState('');
   const [loadingDocs, setLoadingDocs] = useState(false);
+
+  const readingTime = useMemo(() => {
+    if (!content) return 0;
+    const words = content.trim().split(/\s+/).filter(Boolean).length;
+    return Math.max(1, Math.round(words / 200));
+  }, [content]);
+  const [loadingApiDocs, setLoadingApiDocs] = useState(false);
+  const [loadingPRSummary, setLoadingPRSummary] = useState(false);
+  const [loadingChangelog, setLoadingChangelog] = useState(false);
+  const [prNumber, setPrNumber] = useState("");
   const [loadingFile, setLoadingFile] = useState(false);
   const [loadingTree, setLoadingTree] = useState(false);
   const [logs, setLogs] = useState([]);
-  const [statusMessage, setStatusMessage] = useState('Ready to regenerate docs.');
+  const [statusMessage, setStatusMessage] = useState(isDemoMode ? '🎪 Demo Mode — No authentication required' : 'Ready to regenerate docs.');
   const [activeTab, setActiveTab] = useState('docs');
 
+  // Load demo data on mount if in demo mode
   useEffect(() => {
+    if (isDemoMode) {
+      setFiles(DEMO_DOCS_LIST);
+      setRepoFiles(DEMO_REPO_FILES);
+      setSelectedFile(DEMO_DOCS_LIST[0]);
+      setStatusMessage('🎪 Demo Mode — Explore pre-generated documentation');
+      return;
+    }
+
+    // Otherwise load from API
     setLoadingTree(true);
     apiClient
       .get(`/api/repo/${owner}/${repo}/tree`)
@@ -144,33 +172,52 @@ const DocsViewer = () => {
         }
       })
       .catch(() => toast.error('Failed to load docs list'));
-  }, [owner, repo]);
+  }, [owner, repo, isDemoMode]);
 
+  // Load file content
   useEffect(() => {
-    if (!selectedFile) { setContent(''); return; }
+    if (!selectedFile) { 
+      setContent(''); 
+      return; 
+    }
+    
+    if (isDemoMode) {
+      setContent(DEMO_DOCS_CONTENT[selectedFile] || '');
+      return;
+    }
+
     setLoadingFile(true);
     apiClient
       .get(`/api/docs/${owner}/${repo}/${selectedFile}`)
       .then((res) => setContent(res.data.content || ''))
       .catch(() => toast.error('Failed to load file content'))
       .finally(() => setLoadingFile(false));
-  }, [owner, repo, selectedFile]);
+  }, [owner, repo, selectedFile, isDemoMode]);
 
+  // Poll agent logs (not in demo mode)
   useEffect(() => {
+    if (isDemoMode) return;
+    
     const interval = setInterval(() => {
       apiClient.get('/api/agent-logs').then((res) => setLogs(res.data.logs || [])).catch(() => {});
     }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isDemoMode]);
 
   useEffect(() => {
     if (loadingDocs) setStatusMessage('Generating documentation...');
+    else if (isDemoMode) setStatusMessage('🎪 Demo Mode — Explore pre-generated documentation');
     else if (logs.length > 0) setStatusMessage('Recent generation activity available below.');
     else if (files.length > 0) setStatusMessage('Docs are up to date for the selected repository.');
     else setStatusMessage('No generated docs found yet.');
-  }, [loadingDocs, logs, files]);
+  }, [loadingDocs, logs, files, isDemoMode]);
 
   const handleRegenerate = async () => {
+    if (isDemoMode) {
+      toast.error('Cannot regenerate docs in demo mode. Connect a real repository to generate docs.');
+      return;
+    }
+    
     setLoadingDocs(true);
     setStatusMessage('Triggering generation...');
     try {
@@ -184,12 +231,85 @@ const DocsViewer = () => {
     }
   };
 
+  const handleGenerateApiDocs = async () => {
+    if (isDemoMode) {
+      toast.error('Cannot regenerate docs in demo mode. Connect a real repository to generate docs.');
+      return;
+    }
+    
+    setLoadingApiDocs(true);
+    setStatusMessage('Triggering API docs generation...');
+    try {
+      await apiClient.post('/api/docs/api-reference', { owner, repo });
+      toast.success('API docs generation started');
+    } catch (err) {
+      toast.error('Failed to start API docs generation');
+      setStatusMessage('Failed to trigger API docs generation.');
+    } finally {
+      setLoadingApiDocs(false);
+    }
+  };
+
+  const handleSummarizePr = async () => {
+    if (isDemoMode) {
+      toast.error('Cannot summarize PRs in demo mode. Connect a real repository to test PR features.');
+      return;
+    }
+    
+    if (!prNumber.trim()) {
+      toast.error('Enter a PR number first');
+      return;
+    }
+    setLoadingPRSummary(true);
+    setStatusMessage('Triggering PR summary generation...');
+    try {
+      await apiClient.post('/api/docs/pr-summary', { owner, repo, prNumber: prNumber.trim() });
+      toast.success('PR summary generation started');
+    } catch (err) {
+      toast.error('Failed to start PR summary');
+      setStatusMessage('Failed to trigger PR summary.');
+    } finally {
+      setLoadingPRSummary(false);
+    }
+  };
+
+  const handleUpdateChangelog = async () => {
+    if (isDemoMode) {
+      toast.error('Cannot update changelog in demo mode. Connect a real repository to generate changelogs.');
+      return;
+    }
+    
+    setLoadingChangelog(true);
+    setStatusMessage('Triggering changelog update...');
+    try {
+      await apiClient.post('/api/docs/changelog', { owner, repo });
+      toast.success('Changelog update started');
+    } catch (err) {
+      toast.error('Failed to start changelog update');
+      setStatusMessage('Failed to trigger changelog update.');
+    } finally {
+      setLoadingChangelog(false);
+    }
+  };
+
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/docs/${owner}/${repo}`;
+    navigator.clipboard.writeText(url).then(() => {
+      toast.success('Link copied to clipboard!');
+    }).catch(() => {
+      toast.error('Failed to copy link');
+    });
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-[var(--color-bg)] text-[var(--color-text-primary)]">
       <header className="p-4 bg-[var(--color-surface)] shadow-md">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-2xl font-semibold">{owner}/{repo}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-2xl font-semibold">{owner}/{repo}</h2>
+              {isDemoMode && <span className="text-xs px-2 py-1 bg-[var(--color-primary)] text-white rounded-full">DEMO</span>}
+            </div>
             <p className="mt-1 text-[var(--color-text-muted)]">{statusMessage}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -205,15 +325,78 @@ const DocsViewer = () => {
             >
               Repo File Tree
             </button>
+            {!isDemoMode && (
+              <>
+                <button
+                  onClick={handleRegenerate}
+                  disabled={loadingDocs}
+                  className="inline-flex items-center justify-center px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white rounded disabled:opacity-50"
+                >
+                  {loadingDocs ? (
+                    <>
+                      <span className="mr-2 inline-block h-4 w-4 rounded-full border border-[var(--color-surface)] border-t-[var(--color-primary)] animate-spin" />
+                      Generating…
+                    </>
+                  ) : 'Regenerate Docs'}
+                </button>
+                <button
+                  onClick={handleGenerateApiDocs}
+                  disabled={loadingApiDocs}
+                  className="inline-flex items-center justify-center px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white rounded disabled:opacity-50"
+                >
+                  {loadingApiDocs ? (
+                    <>
+                      <span className="mr-2 inline-block h-4 w-4 rounded-full border border-[var(--color-surface)] border-t-[var(--color-primary)] animate-spin" />
+                      Generating API Docs…
+                    </>
+                  ) : 'Generate API Docs'}
+                </button>
+                <button
+                  onClick={handleUpdateChangelog}
+                  disabled={loadingChangelog}
+                  className="inline-flex items-center justify-center px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white rounded disabled:opacity-50"
+                >
+                  {loadingChangelog ? (
+                    <>
+                      <span className="mr-2 inline-block h-4 w-4 rounded-full border border-[var(--color-surface)] border-t-[var(--color-primary)] animate-spin" />
+                      Updating Changelog…
+                    </>
+                  ) : 'Update Changelog'}
+                </button>
+              </>
+            )}
             <button
-              onClick={handleRegenerate}
-              disabled={loadingDocs}
-              className="inline-flex items-center justify-center px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white rounded disabled:opacity-50"
+              onClick={handleCopyLink}
+              className="inline-flex items-center justify-center px-4 py-2 bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] rounded border border-[var(--color-border)]"
+              title="Copy docs link to clipboard"
             >
-              {loadingDocs ? 'Generating…' : 'Regenerate Docs'}
+              📋 Copy Link
             </button>
           </div>
         </div>
+        {!isDemoMode && (
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <input
+              id="pr-number"
+              value={prNumber}
+              onChange={(e) => setPrNumber(e.target.value)}
+              placeholder="PR number"
+              className="w-full rounded bg-[var(--color-surface)] border border-[var(--color-border)] px-3 py-2 text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            />
+            <button
+              onClick={handleSummarizePr}
+              disabled={loadingPRSummary}
+              className="inline-flex min-w-[10rem] items-center justify-center rounded bg-[var(--color-primary)] px-4 py-2 text-white hover:bg-[var(--color-primary-hover)] disabled:opacity-50"
+            >
+                {loadingPRSummary ? (
+                  <>
+                    <span className="mr-2 inline-block h-4 w-4 rounded-full border border-[var(--color-surface)] border-t-[var(--color-primary)] animate-spin" />
+                    Summarizing PR…
+                  </>
+                ) : 'Summarize PR'}
+            </button>
+          </div>
+        )}
       </header>
 
       <div className="flex flex-1 overflow-hidden">
@@ -259,13 +442,16 @@ const DocsViewer = () => {
                   )}
                 </select>
               </div>
-              <div className="rounded-xl bg-[var(--color-surface)] p-4 shadow-sm">
+              <div className="rounded-xl bg-[#0b0b0b] border border-[#222222] p-4 shadow-sm">
                 {loadingFile ? (
                   <div className="flex h-72 items-center justify-center">
                     <div className="loader" />
                   </div>
                 ) : content ? (
-                  <MarkdownViewer markdown={content} />
+                  <>
+                    <div className="mb-4 text-sm text-[#888888]">{readingTime} min read</div>
+                    <MarkdownViewer markdown={content} />
+                  </>
                 ) : (
                   <p className="text-[var(--color-text-muted)]">Select a generated doc file to preview its contents.</p>
                 )}
@@ -297,18 +483,32 @@ const DocsViewer = () => {
         </main>
       </div>
 
-      <footer className="bg-[var(--color-surface)] p-4 text-sm text-[var(--color-text-muted)] border-t border-[var(--color-border)]">
-        <h3 className="font-semibold mb-2">Live generation output</h3>
-        <div className="space-y-2">
-          {logs.length > 0 ? (
-            logs.map((log, idx) => <div key={idx}>{log}</div>)
-          ) : (
-            <div>Awaiting generation output...</div>
-          )}
-        </div>
-      </footer>
+      {!isDemoMode && (
+        <footer className="bg-[var(--color-surface)] p-4 text-sm text-[var(--color-text-muted)] border-t border-[var(--color-border)]">
+          <h3 className="font-semibold mb-2">Live generation output</h3>
+          <div className="space-y-2">
+            {logs.length > 0 ? (
+              logs.map((log) => (
+                <div key={log.id} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+                  <div className="flex items-center justify-between gap-3 text-sm text-[var(--color-text-muted)]">
+                    <span>{log.trigger}</span>
+                    <span>{log.status}</span>
+                  </div>
+                  <div className="mt-2 text-sm text-[var(--color-text-primary)]">
+                    {log.output?.error ? <span className="text-rose-400">{log.output.error}</span> : <span>Completed at {log.endTime || 'pending'}</span>}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div>Awaiting generation output...</div>
+            )}
+          </div>
+        </footer>
+      )}
     </div>
   );
 };
 
 export default DocsViewer;
+
+

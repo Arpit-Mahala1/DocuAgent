@@ -1,6 +1,7 @@
 import express from "express";
 import { generateDocs } from "../agents/docAgent.js";
 import { runCodeParserAgent } from "../agents/codeParserAgent.js";
+import { runAgent } from "../agents/orchestrator.js";
 
 export const connectedRepos = [];
 
@@ -100,6 +101,75 @@ router.post("/parse", async (req, res, next) => {
       success: true,
       message: `CodeParserAgent successfully parsed files.`,
       result
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/api-reference", async (req, res, next) => {
+  const { owner, repo, token, branch } = req.body;
+  if (!owner || !repo) {
+    return res.status(400).json({ success: false, error: "Missing owner or repo." });
+  }
+  const githubToken = token || process.env.GITHUB_ACCESS_TOKEN;
+  if (!githubToken) {
+    return res.status(401).json({ success: false, error: "Missing GitHub access token." });
+  }
+  try {
+    res.status(202).json({
+      success: true,
+      message: `API documentation generation started for ${owner}/${repo}.`
+    });
+
+    runAgent({ trigger: "api-docs", owner, repo, token: githubToken, branch: branch || "main" }).catch((err) => {
+      console.error(`[DocsRoute] APIDocAgent failed for ${owner}/${repo}:`, err);
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/pr-summary", async (req, res, next) => {
+  const { owner, repo, prNumber, token } = req.body;
+  if (!owner || !repo || !prNumber) {
+    return res.status(400).json({ success: false, error: "Missing owner, repo, or prNumber." });
+  }
+  const githubToken = token || process.env.GITHUB_ACCESS_TOKEN;
+  if (!githubToken) {
+    return res.status(401).json({ success: false, error: "Missing GitHub access token." });
+  }
+  try {
+    res.status(202).json({
+      success: true,
+      message: `PR summarization started for ${owner}/${repo} PR #${prNumber}.`
+    });
+
+    runAgent({ trigger: "pr-summary", owner, repo, token: githubToken, prNumber }).catch((err) => {
+      console.error(`[DocsRoute] PRSummarizerAgent failed for ${owner}/${repo} PR #${prNumber}:`, err);
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/changelog", async (req, res, next) => {
+  const { owner, repo, token, branch } = req.body;
+  if (!owner || !repo) {
+    return res.status(400).json({ success: false, error: "Missing owner or repo." });
+  }
+  const githubToken = token || process.env.GITHUB_ACCESS_TOKEN;
+  if (!githubToken) {
+    return res.status(401).json({ success: false, error: "Missing GitHub access token." });
+  }
+  try {
+    res.status(202).json({
+      success: true,
+      message: `Changelog update started for ${owner}/${repo}.`
+    });
+
+    runAgent({ trigger: "deployment", owner, repo, token: githubToken, branch: branch || "main" }).catch((err) => {
+      console.error(`[DocsRoute] DeploymentChangeAgent failed for ${owner}/${repo}:`, err);
     });
   } catch (error) {
     next(error);

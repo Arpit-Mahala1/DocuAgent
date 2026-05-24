@@ -6,6 +6,7 @@ import authRoutes, { sessions, resolveSession } from "./routes/auth.js";
 import docsRoutes, { connectedRepos } from "./routes/docs.js";
 import healthRoutes from "./routes/health.js";
 import webhookRoutes from "./routes/webhook.js";
+import { getAgentLogs } from "./agents/orchestrator.js";
 import { GitHubService } from "./services/github.js";
 import { generateDocs } from "./agents/docAgent.js";
 
@@ -195,7 +196,7 @@ app.get("/api/docs/:owner/:repo/*", async (req, res, next) => {
 });
 
 app.get("/api/agent-logs", (_req, res) => {
-  res.json({ logs: [] });
+  res.json({ logs: getAgentLogs() });
 });
 
 app.post("/api/generate", async (req, res, next) => {

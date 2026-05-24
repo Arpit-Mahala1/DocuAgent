@@ -1,7 +1,7 @@
 import express from "express";
 import crypto from "crypto";
 import { Octokit } from "octokit";
-import { runCodeParserAgent } from "../agents/codeParserAgent.js";
+import { runAgent } from "../agents/orchestrator.js";
 import { sessions } from "./auth.js";
 import { connectedRepos } from "./docs.js";
 
@@ -114,18 +114,15 @@ router.post("/github", async (req, res, next) => {
       console.log(`[Webhook] Found ${changedFiles.length} changed compatible file(s): ${changedFiles.join(", ")}`);
 
       // Fire-and-forget processing in the background
-      runCodeParserAgent({
+      runAgent({
+        trigger: "parse",
         owner,
         repo,
         token,
         branch,
         files: changedFiles
-      }, (event) => {
-        if (event.type === "status") {
-          console.log(`[Webhook CodeParserAgent Status] ${event.message}`);
-        }
-      }).catch(err => {
-        console.error(`[Webhook CodeParserAgent Error] Failed to update docs for ${repoKey}:`, err);
+      }).catch((err) => {
+        console.error(`[Webhook AgentOrchestrator Error] Failed to update docs for ${repoKey}:`, err);
       });
 
       return res.status(202).json({
