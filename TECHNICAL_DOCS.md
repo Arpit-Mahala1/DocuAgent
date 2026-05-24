@@ -4,7 +4,7 @@
 ## Overview
 -----------
 
-DocuAgent is an AI-powered documentation assistant designed to automatically generate, update, and manage high-quality technical documentation for GitHub repositories. It utilizes the Anthropic Claude API and Agentic SDK to inspect file structures, analyze codebases, and write professional Markdown documentations.
+DocuAgent is an AI-powered documentation assistant designed to automatically generate, update, and manage high-quality technical documentation for GitHub repositories. It utilizes the Anthropic Claude API and Agentic SDK to inspect file structures, analyze codebases, and write professional Markdown documentation.
 
 ## Tech Stack
 -------------
@@ -16,8 +16,8 @@ DocuAgent is an AI-powered documentation assistant designed to automatically gen
 * **Frontend**: React + Vite
 * **Styling**: Tailwind CSS v4 (Glassmorphic dark design)
 
-## Installation and Startup
----------------------------
+## Installation and Setup
+-------------------------
 
 ### Backend Setup
 
@@ -43,12 +43,14 @@ GITHUB_CALLBACK_URL=http://localhost:3001/auth/github/callback
 ## Architecture Summary
 ----------------------
 
-The DocuAgent application consists of two main components:
+The DocuAgent architecture consists of the following components:
 
-* **Backend**: Handles API requests, GitHub integration, and documentation generation.
-* **Frontend**: Provides a user interface for connecting GitHub repositories and viewing generated documentation.
+* **Backend**: Handles API requests, GitHub integration, and documentation generation
+* **Frontend**: Provides a user interface for connecting GitHub repositories and viewing documentation
+* **AI Agent**: Utilizes the Anthropic Claude API to generate high-quality documentation
 
-The backend is built using Node.js and Express, with the following directory structure:
+### Directory Layout
+
 ```text
 /backend
   /src
@@ -59,47 +61,46 @@ The backend is built using Node.js and Express, with the following directory str
     index.js        ← Main server configurations and middleware setup
   index.js          ← Entrypoint delegation file
   .env.example      ← Environment configuration template
-```
-The frontend is built using React and Vite, with the following directory structure:
-```text
 /frontend
   /src
     App.jsx         ← Dashboard interface with glassmorphism design
     index.css       ← Tailwind CSS v4 design layers and modern Outfit fonts
     main.jsx        ← React entry node config
   vite.config.js    ← Custom Vite and Tailwind integration
+README.md           ← Complete setup documentation
 ```
+
 ## APIs and Endpoints
 ---------------------
 
-The DocuAgent backend provides the following APIs and endpoints:
+The following APIs and endpoints are available:
 
 ### Authentication
 
-* **GET /auth/github**: Redirects to GitHub's authorization page for OAuth flow.
-* **GET /auth/github/callback**: Handles GitHub authorization code and redirects back to React application.
+* **GET /auth/github**: Redirects to GitHub's authorization page
+* **GET /auth/github/callback**: Exchanges authorization code for access token and redirects to React application
 
 ### Documentation Generation
 
-* **POST /api/generate**: Triggers documentation generation for a specified repository.
-* **GET /api/docs/:owner/:repo**: Retrieves a list of documentation files for a repository.
-* **GET /api/docs/:owner/:repo/***: Retrieves the content of a specific documentation file.
+* **POST /api/generate**: Generates documentation for a GitHub repository
+* **GET /api/docs/:owner/:repo**: Retrieves a list of documentation files for a repository
+* **GET /api/docs/:owner/:repo/***: Retrieves the contents of a specific documentation file
 
 ### Repository Management
 
-* **POST /api/connect-repo**: Connects a repository to DocuAgent for documentation generation.
-* **GET /api/repos**: Retrieves a list of connected repositories.
+* **POST /api/connect-repo**: Connects a GitHub repository to DocuAgent
+* **GET /api/repos**: Retrieves a list of connected repositories
 
 ### User Information
 
-* **GET /api/user**: Retrieves user information, including login and avatar URL.
+* **GET /api/user**: Retrieves user information
 
 ### Health Check
 
-* **GET /health**: Performs a health check on the backend server.
+* **GET /health**: Checks the health of the API
 
 ## GitHub OAuth Flow
----------------------
+--------------------
 
 1. Click **Connect GitHub** on the dashboard.
 2. The user is redirected to the backend `/auth/github` endpoint, which builds the scopes and redirects to GitHub's authorization page.
@@ -108,18 +109,18 @@ The DocuAgent backend provides the following APIs and endpoints:
 5. React retrieves the token, sanitizes the URL bar, and keeps it in local state for safe repository write-back actions.
 
 ## Troubleshooting
------------------
+------------------
 
-* Check the backend server logs for errors.
-* Verify that environment variables are correctly configured.
-* Ensure that the frontend and backend are running on the correct ports.
+* Check the API logs for errors
+* Verify that the environment variables are correctly configured
+* Ensure that the GitHub OAuth credentials are valid and correctly configured
 
 ## Contributing
 ------------
 
-Contributions are welcome! Please submit a pull request with your changes and a brief description of the changes made.
+Contributions are welcome! Please submit a pull request with your changes and a brief description of what you've added or fixed.
 
 ## License
 -------
 
-DocuAgent is licensed under the [MIT License](LICENSE).
+DocuAgent is licensed under the MIT License. See LICENSE for details.
