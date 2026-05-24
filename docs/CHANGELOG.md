@@ -1,3 +1,18 @@
+## [Unreleased]
+### Added
+* Auto-generation of TECHNICAL_DOCS.md by DocuAgent
+* Deployment features
+* Logo
+
+### Changed
+* Updated documentation generation
+
+### Fixed
+* Document Generation Fix
+
+### Breaking Changes
+* None
+
 # Changelog
 
 ## [Unreleased]
