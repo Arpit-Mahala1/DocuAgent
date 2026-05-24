@@ -2,9 +2,9 @@
 =====================================
 
 ## Overview
------------
+------------
 
-DocuAgent is an AI-powered documentation tool designed to automatically generate, update, and manage high-quality technical documentation for GitHub repositories. It utilizes the Anthropic Claude API and the Agentic SDK to inspect file structures, analyze codebases, and write professional Markdown documentation.
+DocuAgent is an AI-powered documentation tool designed to automatically generate, update, and manage high-quality technical documentation for GitHub repositories. It utilizes the Anthropic Claude API and Agentic SDK to inspect file structures, analyze codebases, and write professional Markdown documentation.
 
 ## Tech Stack
 -------------
@@ -22,8 +22,8 @@ DocuAgent is an AI-powered documentation tool designed to automatically generate
 ### Backend Setup
 
 1. Navigate to the backend directory: `cd backend`
-2. Configure the environment variables: `copy .env.example .env`
-3. Open `.env` and configure your credentials:
+2. Configure environment variables: `copy .env.example .env`
+3. Open `.env` and configure credentials:
 ```env
 PORT=3001
 FRONTEND_URL=http://localhost:5173
@@ -49,14 +49,63 @@ The DocuAgent application consists of two main components: the backend and the f
 
 ### Backend
 
-The backend is built using Node.js and Express, and is responsible for:
+* **Entry Point**: `backend/index.js`
+* **Server Configuration**: `backend/src/index.js`
+* **Routes**:
+	+ `/health`: Health check endpoint
+	+ `/auth`: Authentication endpoint
+	+ `/api/docs`: Documentation generation endpoint
+	+ `/webhook`: Webhook endpoint
+* **Services**:
+	+ `github.js`: GitHub Octokit wrapper
+* **Agents**:
+	+ `codeParserAgent.js`: Code parser agent
+	+ `docAgent.js`: Documentation agent
 
-* Handling GitHub OAuth flow
-* Inspecting file structures and analyzing codebases using the Anthropic Claude API and the Agentic SDK
-* Generating and updating technical documentation
-* Providing API endpoints for the frontend to interact with
+### Frontend
 
-The backend directory layout is as follows:
+* **Entry Point**: `frontend/src/main.jsx`
+* **Components**:
+	+ `App.jsx`: Dashboard interface
+	+ `DocsSidebar.jsx`: Documentation sidebar
+	+ `Logo.jsx`: Logo component
+	+ `MarkdownViewer.jsx`: Markdown viewer
+	+ `RepoCard.jsx`: Repository card
+	+ `RepoSelector.jsx`: Repository selector
+	+ `ToastProvider.jsx`: Toast provider
+* **Pages**:
+	+ `Dashboard.jsx`: Dashboard page
+	+ `DocsViewer.jsx`: Documentation viewer page
+	+ `Landing.jsx`: Landing page
+
+## APIs and Endpoints
+----------------------
+
+### Backend Endpoints
+
+* **GET /health**: Health check endpoint
+* **POST /auth/github**: GitHub authentication endpoint
+* **GET /auth/github/callback**: GitHub authentication callback endpoint
+* **POST /api/docs**: Documentation generation endpoint
+* **POST /webhook**: Webhook endpoint
+* **POST /api/connect-repo**: Connect repository endpoint
+
+### Frontend APIs
+
+* **apiClient.js**: API client for making requests to the backend
+
+## GitHub OAuth Flow
+---------------------
+
+1. Click **Connect GitHub** on the dashboard.
+2. The user is redirected to the backend `/auth/github` endpoint, which builds the scopes and redirects to GitHub's authorization page.
+3. Upon approval, GitHub redirects back to `/auth/github/callback` with an authorization code.
+4. The backend exchanges this code for an access token via Axios and redirects the user back to the React application passing the token.
+5. React retrieves the token, sanitizes the URL bar, and keeps it in local state for safe repository write-back actions.
+
+## Directory Layout
+-------------------
+
 ```text
 /backend
   /src
@@ -67,61 +116,11 @@ The backend directory layout is as follows:
     index.js        ← Main server configurations and middleware setup
   index.js          ← Entrypoint delegation file
   .env.example      ← Environment configuration template
-```
-
-### Frontend
-
-The frontend is built using React and Vite, and is responsible for:
-
-* Providing a user interface for users to interact with the application
-* Displaying generated technical documentation
-* Handling user input and sending requests to the backend API
-
-The frontend directory layout is as follows:
-```text
 /frontend
   /src
     App.jsx         ← Dashboard interface with glassmorphism design
     index.css       ← Tailwind CSS v4 design layers and modern Outfit fonts
     main.jsx        ← React entry node config
   vite.config.js    ← Custom Vite and Tailwind integration
+README.md           ← Complete setup documentation
 ```
-
-## API Endpoints
-----------------
-
-The backend provides the following API endpoints:
-
-* **GET /health**: Returns a health check response
-* **GET /auth/github**: Initiates the GitHub OAuth flow
-* **GET /auth/github/callback**: Handles the GitHub OAuth callback
-* **POST /api/docs**: Generates and updates technical documentation
-* **POST /api/connect-repo**: Connects a GitHub repository to the application
-
-## GitHub OAuth Flow
----------------------
-
-The GitHub OAuth flow is as follows:
-
-1. The user clicks the **Connect GitHub** button on the dashboard.
-2. The user is redirected to the backend `/auth/github` endpoint, which builds the scopes and redirects to GitHub's authorization page.
-3. Upon approval, GitHub redirects back to `/auth/github/callback` with an authorization code.
-4. The backend exchanges this code for an access token via Axios and redirects the user back to the React application passing the token.
-5. The React application retrieves the token, sanitizes the URL bar, and keeps it in local state for safe repository write-back actions.
-
-## Troubleshooting
-------------------
-
-* Make sure to configure the environment variables correctly in the `.env` file.
-* Check the console logs for any error messages.
-* Ensure that the GitHub OAuth credentials are correct and properly configured.
-
-## Contributing
-------------
-
-Contributions are welcome! Please submit a pull request with your changes and a brief description of what you've added or fixed.
-
-## License
--------
-
-DocuAgent is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
