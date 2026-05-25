@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { Octokit } from "octokit";
 import { runAgent } from "../agents/orchestrator.js";
 import { sessions } from "./auth.js";
-import { connectedRepos } from "./docs.js";
+import { connectedRepos } from "./connectedRepos.js";
 
 const router = express.Router();
 
