@@ -1,7 +1,7 @@
 import express from "express";
 import axios from "axios";
 import { GitHubService } from "../services/github.js";
-import { connectedRepos } from "./docs.js";
+import { connectedRepos } from "./connectedRepos.js";
 
 const router = express.Router();
 
@@ -55,6 +55,16 @@ const parseCookies = (req) => {
     acc[k.trim()] = decodeURIComponent((v || '').trim());
     return acc;
   }, {});
+};
+
+export const getSessionToken = (req) => {
+  const headerToken = req.headers.authorization?.replace('Bearer ', '');
+  if (headerToken) return headerToken;
+
+  const cookies = parseCookies(req);
+  if (cookies.docuagent_token) return cookies.docuagent_token;
+
+  return req.query.token || null;
 };
 
 /**

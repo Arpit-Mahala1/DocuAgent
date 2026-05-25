@@ -2,8 +2,9 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 
-import authRoutes, { sessions, resolveSession } from "./routes/auth.js";
-import docsRoutes, { connectedRepos } from "./routes/docs.js";
+import authRoutes, { sessions, resolveSession, getSessionToken } from "./routes/auth.js";
+import docsRoutes from "./routes/docs.js";
+import { connectedRepos } from "./routes/connectedRepos.js";
 import healthRoutes from "./routes/health.js";
 import webhookRoutes from "./routes/webhook.js";
 import { getAgentLogs } from "./agents/orchestrator.js";
@@ -39,39 +40,11 @@ app.use("/auth", authRoutes);
 app.use("/api/docs", docsRoutes);
 app.use("/webhook", webhookRoutes);
 
-const parseCookies = (req) => {
-  const rc = req.headers.cookie || '';
-  return rc.split(';').filter(Boolean).reduce((acc, c) => {
-    const [k, v] = c.split('=');
-    if (!k) return acc;
-    acc[k.trim()] = decodeURIComponent((v || '').trim());
-    return acc;
-  }, {});
-};
-
-const getSessionToken = (req) => {
-  // Check Authorization header first
-  const headerToken = req.headers.authorization?.replace('Bearer ', '');
-  if (headerToken) return headerToken;
-
-  // Check cookie set by /auth/github/callback
-  try {
-    const cookies = parseCookies(req);
-    if (cookies.docuagent_token) return cookies.docuagent_token;
-  } catch (e) {}
-
-  // Fallback to query param
-  return req.query.token || null;
-};
 
 const getSession = async (req) => {
   const token = getSessionToken(req);
   if (!token) {
     return null;
-  }
-
-  if (sessions.has(token)) {
-    return sessions.get(token);
   }
 
   return await resolveSession(token);
@@ -239,7 +212,13 @@ app.post("/api/generate", async (req, res, next) => {
   }
 });
 
-app.post("/api/connect-repo", (req, res) => {
+app.post("/api/connect-repo", async (req, res) => {
+  const token = getSessionToken(req);
+  const session = await resolveSession(token);
+  if (!session) {
+    return res.status(401).json({ success: false, error: "Invalid or expired session token." });
+  }
+
   const { owner, repo } = req.body;
   if (!owner || !repo) {
     return res.status(400).json({ success: false, error: "Missing repository owner or name." });

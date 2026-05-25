@@ -1,5 +1,5 @@
-import React, { createContext, useState, useEffect } from 'react';
-import axios from '../api/apiClient';
+import React, { createContext, useState, useEffect, useCallback } from 'react';
+import api from '../api/apiClient.js';
 import toast from 'react-hot-toast';
 
 export const AuthContext = createContext(null);
@@ -24,7 +24,7 @@ export const AuthProvider = ({ children }) => {
   const [sessionResolved, setSessionResolved] = useState(!validStored);
   const [authLoading, setAuthLoading] = useState(Boolean(validStored));
 
-  const fetchSession = async (t) => {
+  const fetchSession = useCallback(async (t) => {
     const incomingToken = t && t !== 'undefined' ? t : null;
 
     setAuthLoading(true);
@@ -37,7 +37,11 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      const sessionRes = await axios.get('/auth/session');
+      const sessionRes = await api.get('/auth/session', {
+        headers: {
+          'x-skip-session-refresh': '1'
+        }
+      });
       const data = sessionRes.data;
 
       const returnedToken = data.token && data.token !== 'undefined' ? data.token : null;
@@ -70,8 +74,8 @@ export const AuthProvider = ({ children }) => {
       // Network/5xx — try fallback endpoints
       try {
         const [userRes, reposRes] = await Promise.all([
-          axios.get('/api/user'),
-          axios.get('/api/repos'),
+          api.get('/api/user'),
+          api.get('/api/repos'),
         ]);
         setUser(userRes.data.user);
         setRepos(reposRes.data.repos || []);
@@ -93,7 +97,7 @@ export const AuthProvider = ({ children }) => {
         return false;
       }
     }
-  };
+  }, []);
 
   // On mount: restore session from stored token
   useEffect(() => {
@@ -101,14 +105,59 @@ export const AuthProvider = ({ children }) => {
       fetchSession(validStored);
     }
     // If no stored token, sessionResolved is already true (set in useState)
-  }, []);
+  }, [fetchSession, validStored]);
 
-  const login = () => {
-    const apiUrl = import.meta.env.VITE_API_URL;
-    window.location.href = `${apiUrl}/auth/github`;
-  };
+  useEffect(() => {
+    let refreshPromise = null;
 
-  const logout = () => {
+    const interceptorId = api.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const config = error.config;
+        const status = error?.response?.status;
+
+        if (!config || config.__isRetryRequest || status !== 401) {
+          return Promise.reject(error);
+        }
+
+        if (config.url?.includes('/auth/session') || config.headers?.['x-skip-session-refresh']) {
+          return Promise.reject(error);
+        }
+
+        const currentToken = localStorage.getItem('token');
+        if (!currentToken || currentToken === 'undefined') {
+          logout();
+          toast.error('Session expired, please log in again.');
+          return Promise.reject(error);
+        }
+
+        if (!refreshPromise) {
+          refreshPromise = fetchSession(currentToken).finally(() => {
+            refreshPromise = null;
+          });
+        }
+
+        try {
+          const restored = await refreshPromise;
+          if (restored) {
+            toast.success('Session restored');
+            config.__isRetryRequest = true;
+            return api(config);
+          }
+        } catch (refreshError) {
+          console.error('[Auth] session refresh failed:', refreshError);
+        }
+
+        logout();
+        toast.error('Session expired, please log in again.');
+        return Promise.reject(error);
+      }
+    );
+
+    return () => api.interceptors.response.eject(interceptorId);
+  }, [fetchSession, logout]);
+
+  const logout = useCallback(() => {
     localStorage.removeItem('token');
     setUser(null);
     setToken(null);
@@ -117,6 +166,11 @@ export const AuthProvider = ({ children }) => {
     setSessionResolved(true);
     setAuthLoading(false);
     window.location.href = '/';
+  }, []);
+
+  const login = () => {
+    const apiUrl = import.meta.env.VITE_API_URL;
+    window.location.href = `${apiUrl}/auth/github`;
   };
 
   return (

@@ -1,9 +1,10 @@
 import express from "express";
+import path from "path";
 import { generateDocs } from "../agents/docAgent.js";
 import { runCodeParserAgent } from "../agents/codeParserAgent.js";
 import { runAgent } from "../agents/orchestrator.js";
-
-export const connectedRepos = [];
+import { resolveSession, getSessionToken } from "./auth.js";
+import { connectedRepos } from "./connectedRepos.js";
 
 const router = express.Router();
 
@@ -62,8 +63,6 @@ router.post("/generate", async (req, res, next) => {
   }
 });
 
-import path from "path";
-
 /**
  * POST /api/docs/parse
  * Runs CodeParserAgent on the specified local directory path or remote GitHub repository
@@ -75,11 +74,23 @@ router.post("/parse", async (req, res, next) => {
     let runOptions;
 
     if (owner && repo) {
+      const token = accessToken || getSessionToken(req);
+      if (!token && !process.env.GITHUB_ACCESS_TOKEN) {
+        return res.status(401).json({ success: false, error: "Missing GitHub access token." });
+      }
+
+      if (!accessToken && token) {
+        const session = await resolveSession(token);
+        if (!session) {
+          return res.status(401).json({ success: false, error: "Invalid or expired session token." });
+        }
+      }
+
       runOptions = {
         owner,
         repo,
         branch: branch || "main",
-        token: accessToken || process.env.GITHUB_ACCESS_TOKEN
+        token: accessToken || token || process.env.GITHUB_ACCESS_TOKEN
       };
     } else {
       // Resolve path relative to current backend workspace to guarantee robust file operations
