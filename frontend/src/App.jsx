@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from
 import Landing from './pages/Landing.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import DocsViewer from './pages/DocsViewer.jsx';
+import Terms from './pages/Terms.jsx';
 import { useContext, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { AuthContext } from './context/AuthContext.jsx';
@@ -40,7 +41,7 @@ function AppContent() {
     if (authLoading || handlingCallback.current) return;
 
     // ── Case 3: Session resolved and confirmed not authenticated ──────────────
-    const publicRoutes = ['/', '/demo'];
+    const publicRoutes = ['/', '/demo', '/terms'];
     if (sessionResolved && !authenticated) {
       if (!publicRoutes.includes(location.pathname)) {
       navigate('/', { replace: true });
@@ -51,6 +52,7 @@ function AppContent() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
+        <Route path="/terms" element={<Terms />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/docs/:owner/:repo" element={<DocsViewer />} />
       <Route path="/demo" element={<DocsViewer isDemoMode={true} />} />

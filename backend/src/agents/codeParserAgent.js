@@ -10,6 +10,7 @@ import { GitHubService } from "../services/github.js";
  */
 export async function readLocalFiles(folderPath) {
   const filesList = [];
+  const SUPPORTED_EXTS = ['.js', '.ts', '.py', '.java', '.go', '.rb', '.php', '.cs'];
 
   async function traverse(currentPath) {
     const entries = await fs.readdir(currentPath, { withFileTypes: true });
@@ -31,7 +32,7 @@ export async function readLocalFiles(folderPath) {
         await traverse(fullPath);
       } else if (entry.isFile()) {
         const ext = path.extname(entry.name);
-        if (ext === ".js" || ext === ".ts" || ext === ".py") {
+        if (SUPPORTED_EXTS.includes(ext)) {
           const content = await fs.readFile(fullPath, "utf-8");
           // Store relative path to make documentation neat
           const relativePath = path.relative(folderPath, fullPath);
@@ -40,7 +41,7 @@ export async function readLocalFiles(folderPath) {
             relativePath,
             fullPath,
             content,
-            language: ext.slice(1) // 'js', 'ts', 'py'
+            language: ext.slice(1) // e.g. 'js', 'ts', 'py', 'java', 'go', 'rb', 'php', 'cs'
           });
         }
       }
@@ -65,7 +66,8 @@ export async function readGitHubFiles(owner, repo, token, branch = "main") {
 
   for (const file of allFiles) {
     const ext = path.extname(file.path);
-    if (ext === ".js" || ext === ".ts" || ext === ".py") {
+    const SUPPORTED_EXTS = ['.js', '.ts', '.py', '.java', '.go', '.rb', '.php', '.cs'];
+    if (SUPPORTED_EXTS.includes(ext)) {
       // Split path to inspect directory parts
       const parts = file.path.split(/[/\\]/);
       if (
@@ -164,8 +166,174 @@ export function parseCodeStructure(fileContent, language) {
         structure.comments.push(trimmed.slice(1).trim());
       }
     }
+  } else if (language === "java" || language === "cs") {
+    // Java and C# style parsing
+    let blockComment = [];
+    let insideBlock = false;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      // Block comments and Javadoc
+      if (trimmed.startsWith("/*")) {
+        insideBlock = true;
+        blockComment = [line];
+        if (trimmed.endsWith("*/") && !trimmed.endsWith("/**/")) {
+          structure.comments.push(blockComment.join("\n"));
+          insideBlock = false;
+        }
+        continue;
+      }
+      if (insideBlock) {
+        blockComment.push(line);
+        if (trimmed.endsWith("*/")) {
+          structure.comments.push(blockComment.join("\n"));
+          insideBlock = false;
+        }
+        continue;
+      }
+
+      // Single-line comments
+      if (trimmed.startsWith("//")) {
+        structure.comments.push(trimmed.slice(2).trim());
+        continue;
+      }
+
+      // Class definitions
+      const classMatch = trimmed.match(/^(?:public\s+|private\s+|protected\s+)?(?:abstract\s+|sealed\s+|final\s+)?class\s+([A-Za-z0-9_]+)(?:\s+extends\s+([A-Za-z0-9_]+))?(?:\s+implements\s+([A-Za-z0-9_,\s]+))?/i);
+      if (classMatch) {
+        structure.classes.push({ name: classMatch[1], inherits: classMatch[2] || null, line: i + 1 });
+        continue;
+      }
+
+      // Method/function definitions
+      const methodMatch = trimmed.match(/^(?:public\s+|private\s+|protected\s+)?(?:static\s+)?(?:async\s+)?(?:[A-Za-z0-9_<>\[\]]+\s+)?([A-Za-z0-9_]+)\s*\(([^)]*)\)\s*(?:throws\s+[A-Za-z0-9_,\s]+)?\s*\{?/);
+      if (methodMatch) {
+        structure.functions.push({ name: methodMatch[1], arguments: methodMatch[2], line: i + 1 });
+        continue;
+      }
+
+    }
+  } else if (language === "go") {
+    // Go parsing
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      if (trimmed.startsWith("//")) {
+        structure.comments.push(trimmed.slice(2).trim());
+        continue;
+      }
+      if (trimmed.startsWith("/*")) {
+        // naive block capture
+        let j = i;
+        let block = [];
+        while (j < lines.length) {
+          block.push(lines[j]);
+          if (lines[j].trim().endsWith("*/")) break;
+          j++;
+        }
+        structure.comments.push(block.join("\n"));
+        i = j;
+        continue;
+      }
+
+      const structMatch = trimmed.match(/^type\s+([A-Za-z0-9_]+)\s+struct\s*\{/);
+      if (structMatch) {
+        structure.classes.push({ name: structMatch[1], line: i + 1 });
+        continue;
+      }
+
+      const funcMatch = trimmed.match(/^func\s+(?:\([^)]+\)\s*)?([A-Za-z0-9_]+)\s*\(([^)]*)\)\s*(?:\([^)]+\)|[A-Za-z0-9_<>\[\]]+)?\s*\{?/);
+      if (funcMatch) {
+        structure.functions.push({ name: funcMatch[1], arguments: funcMatch[2], line: i + 1 });
+        continue;
+      }
+
+    }
+  } else if (language === "rb") {
+    // Ruby parsing
+    let inBlock = false;
+    let block = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      if (trimmed.startsWith("#")) {
+        structure.comments.push(trimmed.slice(1).trim());
+        continue;
+      }
+      if (trimmed.match(/^=begin/)) {
+        inBlock = true;
+        block = [line];
+        continue;
+      }
+      if (inBlock) {
+        block.push(line);
+        if (trimmed.match(/^=end/)) {
+          structure.comments.push(block.join("\n"));
+          inBlock = false;
+        }
+        continue;
+      }
+
+      const classMatch = trimmed.match(/^class\s+([A-Za-z0-9_:]+)/);
+      if (classMatch) {
+        structure.classes.push({ name: classMatch[1], line: i + 1 });
+        continue;
+      }
+
+      const defMatch = trimmed.match(/^def\s+([a-zA-Z0-9_!?]+)(?:\s*(\([^)]*\))?)/);
+      if (defMatch) {
+        structure.functions.push({ name: defMatch[1], arguments: defMatch[2] || "", line: i + 1 });
+        continue;
+      }
+    }
+  } else if (language === "php") {
+    // PHP parsing
+    let inBlock = false;
+    let block = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      if (trimmed.startsWith("//") || trimmed.startsWith("#")) {
+        structure.comments.push(trimmed.replace(/^\/\/|^#/, '').trim());
+        continue;
+      }
+      if (trimmed.startsWith("/*")) {
+        inBlock = true;
+        block = [line];
+        if (trimmed.endsWith("*/")) {
+          structure.comments.push(block.join("\n"));
+          inBlock = false;
+        }
+        continue;
+      }
+      if (inBlock) {
+        block.push(line);
+        if (trimmed.endsWith("*/")) {
+          structure.comments.push(block.join("\n"));
+          inBlock = false;
+        }
+        continue;
+      }
+
+      const classMatch = trimmed.match(/^(?:abstract\s+|final\s+)?class\s+([A-Za-z0-9_]+)/i);
+      if (classMatch) {
+        structure.classes.push({ name: classMatch[1], line: i + 1 });
+        continue;
+      }
+
+      const funcMatch = trimmed.match(/^(?:public\s+|private\s+|protected\s+)?(?:static\s+)?function\s+&?\s*([A-Za-z0-9_]+)\s*\(([^)]*)\)/i);
+      if (funcMatch) {
+        structure.functions.push({ name: funcMatch[1], arguments: funcMatch[2], line: i + 1 });
+        continue;
+      }
+
+    }
   } else {
-    // 🟨 JS/TS parsing
+    // 🟨 JS/TS parsing (fallback)
     let jsdoc = [];
     let insideJsdoc = false;
 
@@ -207,25 +375,14 @@ export function parseCodeStructure(fileContent, language) {
       const arrowMatch = trimmed.match(/(?:export\s+)?const\s+([a-zA-Z0-9_]+)\s*=\s*(?:async\s*)?\(([^)]*)\)\s*=>/);
 
       if (funcMatch && !trimmed.startsWith("//") && !trimmed.startsWith("/*")) {
-        structure.functions.push({
-          name: funcMatch[1],
-          arguments: funcMatch[2],
-          line: i + 1
-        });
+        structure.functions.push({ name: funcMatch[1], arguments: funcMatch[2], line: i + 1 });
       } else if (arrowMatch && !trimmed.startsWith("//") && !trimmed.startsWith("/*")) {
-        structure.functions.push({
-          name: arrowMatch[1],
-          arguments: arrowMatch[2],
-          line: i + 1
-        });
+        structure.functions.push({ name: arrowMatch[1], arguments: arrowMatch[2], line: i + 1 });
       }
 
       // Export symbol tracking
       if (trimmed.startsWith("export ")) {
-        structure.exports.push({
-          statement: trimmed,
-          line: i + 1
-        });
+        structure.exports.push({ statement: trimmed, line: i + 1 });
       }
     }
   }
@@ -289,7 +446,8 @@ export async function runCodeParserAgent(options, onStreamCallback = () => {}) {
       const github = new GitHubService(token);
       for (const filePath of targetFiles) {
         const ext = path.extname(filePath);
-        if (ext === ".js" || ext === ".ts" || ext === ".py") {
+        const SUPPORTED_EXTS = ['.js', '.ts', '.py', '.java', '.go', '.rb', '.php', '.cs'];
+        if (SUPPORTED_EXTS.includes(ext)) {
           const parts = filePath.split(/[/\\]/);
           if (
             parts.includes("node_modules") ||
@@ -326,7 +484,7 @@ export async function runCodeParserAgent(options, onStreamCallback = () => {}) {
   }
 
   if (files.length === 0) {
-    onStreamCallback({ type: "status", message: `No compatible code files (.js, .ts, .py) found in target source: ${sourceDescription}` });
+    onStreamCallback({ type: "status", message: `No compatible code files (.js, .ts, .py, .java, .go, .rb, .php, .cs) found in target source: ${sourceDescription}` });
     return { success: false, reason: "No target files found" };
   }
 
