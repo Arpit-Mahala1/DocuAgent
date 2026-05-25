@@ -107,6 +107,17 @@ export const AuthProvider = ({ children }) => {
     // If no stored token, sessionResolved is already true (set in useState)
   }, [fetchSession, validStored]);
 
+  const logout = useCallback(() => {
+    localStorage.removeItem('token');
+    setUser(null);
+    setToken(null);
+    setRepos([]);
+    setAuthenticated(false);
+    setSessionResolved(true);
+    setAuthLoading(false);
+    window.location.href = '/';
+  }, []);
+
   useEffect(() => {
     let refreshPromise = null;
 
@@ -156,17 +167,6 @@ export const AuthProvider = ({ children }) => {
 
     return () => api.interceptors.response.eject(interceptorId);
   }, [fetchSession, logout]);
-
-  const logout = useCallback(() => {
-    localStorage.removeItem('token');
-    setUser(null);
-    setToken(null);
-    setRepos([]);
-    setAuthenticated(false);
-    setSessionResolved(true);
-    setAuthLoading(false);
-    window.location.href = '/';
-  }, []);
 
   const login = () => {
     const apiUrl = import.meta.env.VITE_API_URL;
