@@ -7,9 +7,9 @@
 DocuAgent is an AI-powered documentation generation tool designed to automate the process of creating and updating technical documentation for GitHub repositories. The application utilizes a combination of natural language processing (NLP) and machine learning algorithms to analyze codebases and generate high-quality documentation.
 
 ## Tech Stack and Key Dependencies
-------------------------------------
+---------------------------------
 
-The DocuAgent application is built using the following technologies:
+The DocuAgent application is built using a combination of technologies, including:
 
 * **Backend Runtime:** Node.js 20 (ES Modules)
 * **Backend Framework:** Express.js
@@ -22,7 +22,7 @@ The DocuAgent application is built using the following technologies:
 * **Markdown:** react-markdown + rehype-highlight
 
 ## Installation and Startup Instructions
-------------------------------------------
+-----------------------------------------
 
 ### Prerequisites
 
@@ -47,78 +47,64 @@ The DocuAgent application is built using the following technologies:
 ## Architecture Summary and Directory Layout
 ---------------------------------------------
 
-The DocuAgent application consists of two main components: the backend and the frontend.
+The DocuAgent application is organized into two main directories: `backend` and `frontend`.
 
-### Backend
+### Backend Directory Layout
 
-The backend is built using Node.js and Express.js, and is responsible for handling API requests, interacting with the GitHub API, and generating documentation using the Groq SDK.
+* `src/agents`: AI agent logic for each documentation type
+* `src/routes`: Express endpoints for OAuth, documentation, and webhooks
+* `src/services`: GitHub API integration
+* `index.js`: Server entrypoint
+* `Dockerfile`: Container image definition
 
-* **/src**: Source code for the backend application
-	+ **/agents**: AI agent logic for each doc type
-	+ **/routes**: Express endpoints (OAuth, docs, webhooks)
-	+ **/services**: GitHub API integration
-* **index.js**: Server entrypoint
-* **Dockerfile**: Container image definition
+### Frontend Directory Layout
 
-### Frontend
-
-The frontend is built using React and Vite, and is responsible for rendering the user interface and handling user interactions.
-
-* **/src**: Source code for the frontend application
-	+ **/pages**: Landing, Dashboard, DocsViewer
-	+ **/components**: Reusable UI components
-	+ **/context**: Auth context management
-* **vite.config.js**: Vite configuration
-* **tailwind.config.js**: Tailwind theme settings
+* `src/pages`: Landing, Dashboard, and DocsViewer pages
+* `src/components`: Reusable UI components
+* `src/context`: Auth context management
+* `vite.config.js`: Vite configuration
+* `tailwind.config.js`: Tailwind theme settings
 
 ## Main APIs and Endpoints
 ---------------------------
 
-The DocuAgent backend exposes the following APIs and endpoints:
+The DocuAgent backend exposes several APIs and endpoints for interacting with the application:
 
-* **/api/user**: Returns information about the current user
-* **/api/repos**: Returns a list of connected repositories
-* **/api/repo/:owner/:repo/tree**: Returns the file tree for a given repository
-* **/api/docs/:owner/:repo**: Returns the documentation for a given repository
-* **/api/docs/:owner/:repo/***: Returns the content of a specific file in a repository
-* **/api/agent-logs**: Returns the logs for the AI agents
-* **/api/generate**: Triggers the generation of documentation for a given repository
-* **/api/connect-repo**: Connects a new repository to the DocuAgent application
+* **GET /api/user**: Retrieves the current user's information
+* **GET /api/repos**: Retrieves a list of connected repositories
+* **GET /api/repo/:owner/:repo/tree**: Retrieves the file tree for a specific repository
+* **GET /api/docs/:owner/:repo**: Retrieves the documentation for a specific repository
+* **GET /api/docs/:owner/:repo/***: Retrieves the content of a specific file in a repository
+* **POST /api/generate**: Triggers the documentation generation process for a specific repository
+* **POST /api/connect-repo**: Connects a new repository to the application
 
 ## GitHub OAuth App Setup
----------------------------
+-------------------------
 
-To use the DocuAgent application, you need to set up a GitHub OAuth app and configure the application to use your app credentials.
+To set up the GitHub OAuth app, follow these steps:
 
 1. Navigate to [GitHub Settings → Developer settings → OAuth Apps](https://github.com/settings/developers)
 2. Click **New OAuth App**
 3. Fill in the application name, homepage URL, and authorization callback URL
-4. Copy the client ID and client secret into your `.env` file
+4. Copy the client ID and client secret into the `.env` file
 
 ## Docker and Deployment
 -------------------------
 
-The DocuAgent application can be deployed using Docker and Vercel.
+The DocuAgent backend can be deployed using Docker. To build the Docker image, run the following command:
 
-### Build Docker Image
+```bash
+cd backend
+docker build -t docuagent-backend:latest .
+docker run -p 3001:3001 --env-file .env docuagent-backend:latest
+```
 
-1. Navigate to the backend directory: `cd DocuAgent/backend`
-2. Build the Docker image: `docker build -t docuagent-backend:latest .`
-3. Run the Docker container: `docker run -p 3001:3001 --env-file .env docuagent-backend:latest`
-
-### Deploy Frontend
-
-1. Navigate to the frontend directory: `cd DocuAgent/frontend`
-2. Deploy the frontend application using Vercel: `vercel deploy`
+The frontend can be deployed using Vercel, Netlify, or any other static hosting platform.
 
 ## Demo Mode
 -------------
 
-The DocuAgent application includes a demo mode that allows you to try out the application without logging in.
-
-1. Click **"Try Demo"** on the landing page
-2. Explore the pre-generated documentation for the DocuAgent repository
-3. See all five agent outputs in action
+The DocuAgent application includes a demo mode that allows users to try out the application without logging in. To access the demo mode, click the **Try Demo** button on the landing page.
 
 ## License
 ---------
